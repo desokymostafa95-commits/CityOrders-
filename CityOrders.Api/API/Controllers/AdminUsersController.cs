@@ -101,6 +101,7 @@ namespace CityOrders.Api.API.Controllers
 
             user.UserRoles.Add(new UserRole { Role = role });
 
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
@@ -133,6 +134,59 @@ namespace CityOrders.Api.API.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound();
 
+            // 1. Handle DeliveryOffice if this user is a manager
+            var managedOffice = await _context.DeliveryOffices
+                .FirstOrDefaultAsync(o => o.ManagerUserId == id);
+            if (managedOffice != null)
+            {
+                // Disassociate delivery profiles (agents)
+                var profiles = await _context.DeliveryProfiles
+                    .Where(p => p.DeliveryOfficeId == managedOffice.Id)
+                    .ToListAsync();
+                foreach (var profile in profiles)
+                {
+                    profile.DeliveryOfficeId = null;
+                }
+
+                // Disassociate delivery assignments
+                var assignments = await _context.DeliveryAssignments
+                    .Where(a => a.DeliveryOfficeId == managedOffice.Id)
+                    .ToListAsync();
+                foreach (var assignment in assignments)
+                {
+                    assignment.DeliveryOfficeId = null;
+                }
+
+                _context.DeliveryOffices.Remove(managedOffice);
+            }
+
+            // 2. Handle collected payments by this user
+            var collectedAssignments = await _context.DeliveryAssignments
+                .Where(a => a.CollectedByUserId == id)
+                .ToListAsync();
+            foreach (var assignment in collectedAssignments)
+            {
+                assignment.CollectedByUserId = null;
+            }
+
+            // 3. Handle chat threads and messages
+            var userMessages = await _context.ChatMessages
+                .Where(m => m.SenderUserId == id)
+                .ToListAsync();
+            _context.ChatMessages.RemoveRange(userMessages);
+
+            var userThreads = await _context.ChatThreads
+                .Where(t => t.AdminUserId == id)
+                .ToListAsync();
+            _context.ChatThreads.RemoveRange(userThreads);
+
+            // 4. Remove UserRoles first to be safe
+            var userRoles = await _context.UserRoles
+                .Where(ur => ur.UserId == id)
+                .ToListAsync();
+            _context.UserRoles.RemoveRange(userRoles);
+
+            // 5. Remove User
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
             return NoContent();
