@@ -160,7 +160,7 @@ export const AdminUsersPage = () => {
                                                 <select
                                                     value={user.roles?.[0]?.id || ''}
                                                     onChange={(event) => updateRoleMutation.mutate({ id: user.id, roleId: Number(event.target.value) })}
-                                                    disabled={updateRoleMutation.isPending}
+                                                    disabled={updateRoleMutation.isPending || user.id === Number(currentUser?.id)}
                                                     className="mt-2 w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                                 >
                                                     {assignableRoles.map(role => (

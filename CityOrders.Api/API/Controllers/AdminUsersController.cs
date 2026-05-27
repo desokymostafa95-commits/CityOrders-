@@ -111,6 +111,15 @@ namespace CityOrders.Api.API.Controllers
         [HttpPut("{id}/role")]
         public async Task<ActionResult> UpdateAdminRole(int id, [FromBody] UpdateAdminRoleDto dto)
         {
+            var loggedInUserIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!string.IsNullOrEmpty(loggedInUserIdString) && int.TryParse(loggedInUserIdString, out var loggedInUserId))
+            {
+                if (loggedInUserId == id)
+                {
+                    return BadRequest("لا يمكنك تعديل دورك الشخصي.");
+                }
+            }
+
             var user = await _context.Users.Include(u => u.UserRoles).FirstOrDefaultAsync(u => u.Id == id);
             if (user == null) return NotFound();
 
