@@ -5,9 +5,11 @@ import { adminUsersApi } from '@/api/adminUsersApi';
 import { adminRolesApi } from '@/api/adminRolesApi';
 import { toast } from 'sonner';
 import { useTranslation } from '@/context/LanguageContext';
+import { useAuth } from '@/auth/auth-context';
 
 export const AdminUsersPage = () => {
     const { t, language } = useTranslation();
+    const { user: currentUser } = useAuth();
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
     const [isCreating, setIsCreating] = useState(false);
@@ -170,13 +172,15 @@ export const AdminUsersPage = () => {
                                             </div>
                                             
                                             <div className={`flex items-center gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
-                                                <button 
-                                                    onClick={() => { if(confirm(t('staff.confirmDelete').replace('{name}', user.name))) deleteMutation.mutate(user.id); }} 
-                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                                    title={t('staff.confirmDelete').replace(' {name}?', '')}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                {user.id !== Number(currentUser?.id) && (
+                                                    <button 
+                                                        onClick={() => { if(confirm(t('staff.confirmDelete').replace('{name}', user.name))) deleteMutation.mutate(user.id); }} 
+                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                                        title={t('staff.confirmDelete').replace(' {name}?', '')}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
