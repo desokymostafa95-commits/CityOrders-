@@ -8,7 +8,7 @@ function Log($msg) {
 }
 
 Log "1. Admin Login..."
-$adminLoginBody = @{ email = "admin@cityorders.local"; password = "Admin123!" } | ConvertTo-Json
+$adminLoginBody = @{ email = "desoky@gmail.com"; password = "Desoky1!" } | ConvertTo-Json
 $adminRes = Invoke-RestMethod -Uri "$baseUrl/Auth/login" -Method Post -Body $adminLoginBody -ContentType "application/json"
 $adminToken = $adminRes.token
 $adminHeaders = @{ Authorization = "Bearer $adminToken" }

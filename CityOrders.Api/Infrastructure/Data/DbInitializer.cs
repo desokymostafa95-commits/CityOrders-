@@ -19,21 +19,26 @@ namespace CityOrders.Api.Infrastructure.Data
             }
 
             // 1. Admin
-            if (!context.Users.Any(u => u.Email == "admin@cityorders.local"))
+            var adminUser = context.Users.FirstOrDefault(u => u.Email == "desoky@gmail.com");
+            if (adminUser == null)
             {
                 var adminRole = context.Roles.FirstOrDefault(r => r.Name == "Admin");
                 if (adminRole != null)
                 {
-                    var adminUser = new User
+                    adminUser = new User
                     {
                         Name = "Admin",
-                        Email = "admin@cityorders.local",
-                        PasswordHash = PasswordHasher.HashPassword("Admin@12345"),
+                        Email = "desoky@gmail.com",
+                        PasswordHash = PasswordHasher.HashPassword("Desoky1!"),
                         IsActive = true
                     };
                     adminUser.UserRoles.Add(new UserRole { Role = adminRole });
                     context.Users.Add(adminUser);
                 }
+            }
+            else
+            {
+                adminUser.PasswordHash = PasswordHasher.HashPassword("Desoky1!");
             }
 
             // 2. Merchant (with Brand)

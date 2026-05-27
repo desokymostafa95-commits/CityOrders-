@@ -51,7 +51,7 @@ try {
 }
 
 Log "6. Admin Login..."
-$adminLoginBody = @{ email = "admin@cityorders.local"; password = "Admin@12345" } | ConvertTo-Json
+$adminLoginBody = @{ email = "desoky@gmail.com"; password = "Desoky1!" } | ConvertTo-Json
 $adminToken = (Invoke-RestMethod -Uri "$baseUrl/Auth/login" -Method Post -Body $adminLoginBody -ContentType "application/json").token
 $adminHeaders = @{ Authorization = "Bearer $adminToken" }
 
