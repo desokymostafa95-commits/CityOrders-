@@ -7,6 +7,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
+using CityOrders.Api.Infrastructure.Security;
 
 // Set QuestPDF License
 QuestPDF.Settings.License = LicenseType.Community;
@@ -82,6 +83,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // Register background jobs
+builder.Services.AddScoped<CityOrders.Api.Application.Services.NotificationService>();
+builder.Services.AddScoped<CityOrders.Api.Application.Services.DeliveryDispatchService>();
 builder.Services.AddHostedService<ExpireSubscriptionsJob>();
 
 var app = builder.Build();
@@ -135,6 +138,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseAuthentication();
+app.UseMiddleware<AdminPermissionMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

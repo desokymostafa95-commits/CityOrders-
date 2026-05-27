@@ -57,5 +57,6 @@ namespace CityOrders.Api.Domain.Entities
         public DateTime? DeliveredAt { get; set; }
 
         public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+        public DeliveryAssignment? DeliveryAssignment { get; set; }
     }
 }

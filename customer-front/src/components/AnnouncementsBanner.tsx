@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Surface, Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GlobalAnnouncement } from '../types';
@@ -30,7 +30,7 @@ export default function AnnouncementsBanner({ announcements }: Props) {
                 >
                     <View style={styles.content}>
                         <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary }]}>
-                            <MaterialCommunityIcons name="megaphone-variant" color="#fff" size={20} />
+                            <MaterialCommunityIcons name="bullhorn" color="#fff" size={20} />
                         </View>
                         <View style={styles.textContainer}>
                             <Text variant="labelMedium" style={{ color: theme.colors.primary, fontWeight: '800', textTransform: 'uppercase', marginBottom: 2 }}>

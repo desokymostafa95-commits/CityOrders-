@@ -4,6 +4,7 @@ using CityOrders.Api.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CityOrders.Api.API.Controllers
 {
@@ -18,6 +19,111 @@ namespace CityOrders.Api.API.Controllers
         {
             _context = context;
             _env = env;
+        }
+
+        [HttpGet("dashboard-summary")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetDashboardSummary()
+        {
+            var now = DateTime.UtcNow;
+            var sevenDaysAgo = now.AddDays(-7);
+            var adminUserId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedAdminId)
+                ? parsedAdminId
+                : 0;
+
+            var totalOrders = await _context.Orders.CountAsync();
+            var activeOrders = await _context.Orders.CountAsync(o =>
+                o.Status == OrderStatus.Pending ||
+                o.Status == OrderStatus.Accepted ||
+                o.Status == OrderStatus.Preparing ||
+                o.Status == OrderStatus.OutForDelivery);
+            var lateThreshold = now.AddMinutes(-30);
+            var lateActiveOrders = await _context.Orders.CountAsync(o =>
+                o.CreatedAt <= lateThreshold &&
+                (o.Status == OrderStatus.Pending ||
+                 o.Status == OrderStatus.Accepted ||
+                 o.Status == OrderStatus.Preparing ||
+                 o.Status == OrderStatus.OutForDelivery));
+
+            var deliveredRevenue = await _context.Orders
+                .Where(o => o.Status == OrderStatus.Delivered)
+                .SumAsync(o => (decimal?)o.Total) ?? 0m;
+
+            var todaysRevenue = await _context.Orders
+                .Where(o => o.Status == OrderStatus.Delivered && o.DeliveredAt.HasValue && o.DeliveredAt.Value >= now.Date)
+                .SumAsync(o => (decimal?)o.Total) ?? 0m;
+
+            var customers = await _context.UserRoles.CountAsync(ur => ur.Role.Name == "Customer");
+            var merchants = await _context.UserRoles.CountAsync(ur => ur.Role.Name == "Merchant");
+            var onlineMerchants = await _context.MerchantProfiles.CountAsync(mp => mp.IsActive && mp.IsApproved && mp.IsOnShift);
+            var temporarilyClosedMerchants = await _context.MerchantProfiles.CountAsync(mp => mp.IsActive && mp.IsApproved && mp.IsTemporarilyClosed);
+            var pendingApprovals = await _context.MerchantProfiles.CountAsync(mp => !mp.IsApproved && string.IsNullOrEmpty(mp.RejectionReason));
+            var pendingPayments = await _context.SubscriptionPaymentRequests.CountAsync(pr => pr.Status == "Pending");
+            var newCustomers = await _context.Users.CountAsync(u => u.CreatedAt >= sevenDaysAgo);
+            var unreadAdminChats = await _context.ChatMessages.CountAsync(m =>
+                m.Thread.Type == ChatThreadType.AdminMerchant &&
+                m.Thread.AdminUserId == adminUserId &&
+                m.SenderUserId != adminUserId &&
+                m.ReadAt == null);
+            var openChatThreads = await _context.ChatThreads.CountAsync(t =>
+                t.Type == ChatThreadType.AdminMerchant && t.Messages.Any());
+
+            var recentOrders = await _context.Orders
+                .Include(o => o.Brand)
+                .OrderByDescending(o => o.CreatedAt)
+                .Take(6)
+                .AsNoTracking()
+                .Select(o => new
+                {
+                    o.Id,
+                    o.OrderNumber,
+                    BrandName = o.Brand.Name,
+                    Status = o.Status.ToString(),
+                    o.Total,
+                    o.CreatedAt
+                })
+                .ToListAsync();
+            var needsAttentionOrders = await _context.Orders
+                .Include(o => o.Brand)
+                .Where(o =>
+                    o.CreatedAt <= lateThreshold &&
+                    (o.Status == OrderStatus.Pending ||
+                     o.Status == OrderStatus.Accepted ||
+                     o.Status == OrderStatus.Preparing ||
+                     o.Status == OrderStatus.OutForDelivery))
+                .OrderBy(o => o.CreatedAt)
+                .Take(6)
+                .AsNoTracking()
+                .Select(o => new
+                {
+                    o.Id,
+                    o.OrderNumber,
+                    BrandName = o.Brand.Name,
+                    Status = o.Status.ToString(),
+                    o.Total,
+                    o.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                totalOrders,
+                activeOrders,
+                lateActiveOrders,
+                deliveredRevenue,
+                todaysRevenue,
+                customers,
+                merchants,
+                onlineMerchants,
+                temporarilyClosedMerchants,
+                pendingApprovals,
+                pendingPayments,
+                newCustomers,
+                unreadAdminChats,
+                openChatThreads,
+                recentOrders,
+                needsAttentionOrders
+            });
         }
 
         [HttpPost("create-admin")]
@@ -149,7 +255,9 @@ namespace CityOrders.Api.API.Controllers
             var query = _context.MerchantProfiles
                 .Include(mp => mp.User)
                 .Include(mp => mp.Brand)
-                    .ThenInclude(b => b.MasterCategories)
+                    .ThenInclude(b => b!.MasterCategories)
+                .Include(mp => mp.Brand)
+                    .ThenInclude(b => b!.MarketSector)
                 .AsNoTracking();
 
             if (status.ToLower() == "pending")
@@ -169,6 +277,9 @@ namespace CityOrders.Api.API.Controllers
                     BrandAddress = mp.Brand != null ? mp.Brand.Address : null,
                     BrandPhone = mp.Brand != null ? mp.Brand.Phone1 : null,
                     LogoUrl = mp.Brand != null ? mp.Brand.LogoUrl : null,
+                    MarketSectorId = mp.Brand != null ? mp.Brand.MarketSectorId : (int?)null,
+                    MarketSectorName = mp.Brand != null ? mp.Brand.MarketSector.Name : null,
+                    MarketSectorSlug = mp.Brand != null ? mp.Brand.MarketSector.Slug : null,
                     Lat = mp.Brand != null ? mp.Brand.LocationLat : null,
                     Lng = mp.Brand != null ? mp.Brand.LocationLng : null,
                     MasterCategories = mp.Brand != null ? mp.Brand.MasterCategories.Select(c => c.Name).ToList() : new List<string>(),
@@ -544,9 +655,11 @@ namespace CityOrders.Api.API.Controllers
             var now = DateTime.UtcNow;
             var query = _context.MerchantSubscriptions
                 .Include(ms => ms.User)
-                .Include(ms => ms.User.MerchantProfile)
-                .Include(ms => ms.User.MerchantProfile.Brand)
+                .Include(ms => ms.User.MerchantProfile!)
+                .Include(ms => ms.User.MerchantProfile!.Brand!)
                     .ThenInclude(b => b.MasterCategories)
+                .Include(ms => ms.User.MerchantProfile!.Brand!)
+                    .ThenInclude(b => b.MarketSector)
                 .AsNoTracking();
 
             // Apply search
@@ -555,8 +668,10 @@ namespace CityOrders.Api.API.Controllers
                 query = query.Where(ms => 
                     ms.User.Name.Contains(search) || 
                     ms.User.Email.Contains(search) || 
-                    ms.User.MerchantProfile.Brand.Name.Contains(search) ||
-                    ms.User.MerchantProfile.Brand.Phone1.Contains(search));
+                    (ms.User.MerchantProfile != null &&
+                     ms.User.MerchantProfile.Brand != null &&
+                     (ms.User.MerchantProfile.Brand.Name.Contains(search) ||
+                      (ms.User.MerchantProfile.Brand.Phone1 != null && ms.User.MerchantProfile.Brand.Phone1.Contains(search)))));
             }
 
             var subscriptions = await query.ToListAsync();
@@ -606,6 +721,9 @@ namespace CityOrders.Api.API.Controllers
                 IsApproved = ms.User.MerchantProfile?.IsApproved ?? false,
                 IsTemporarilyClosed = ms.User.MerchantProfile?.IsTemporarilyClosed ?? false,
                 ApprovalRequestReason = ms.User.MerchantProfile?.ApprovalRequestReason,
+                MarketSectorId = ms.User.MerchantProfile?.Brand?.MarketSectorId,
+                MarketSectorName = ms.User.MerchantProfile?.Brand?.MarketSector?.Name,
+                MarketSectorSlug = ms.User.MerchantProfile?.Brand?.MarketSector?.Slug,
                 MasterCategories = ms.User.MerchantProfile?.Brand?.MasterCategories.Select(c => c.Name).ToList() ?? new List<string>(),
                 MasterCategoryIds = ms.User.MerchantProfile?.Brand?.MasterCategories.Select(c => c.Id).ToList() ?? new List<int>()
             });
@@ -620,9 +738,12 @@ namespace CityOrders.Api.API.Controllers
         {
             var ms = await _context.MerchantSubscriptions
                 .Include(ms => ms.User)
-                .Include(ms => ms.User.MerchantProfile)
+                .Include(ms => ms.User.MerchantProfile!)
                 .ThenInclude(mp => mp.Brand)
-                    .ThenInclude(b => b.MasterCategories)
+                    .ThenInclude(b => b!.MasterCategories)
+                .Include(ms => ms.User.MerchantProfile!)
+                .ThenInclude(mp => mp.Brand)
+                    .ThenInclude(b => b!.MarketSector)
                 .Include(ms => ms.Plan)
                 .FirstOrDefaultAsync(ms => ms.UserId == userId);
 
@@ -643,6 +764,9 @@ namespace CityOrders.Api.API.Controllers
                 EndDate = ms.EndDate,
                 DaysRemaining = ms.GetDaysRemaining(),
                 GraceEndDate = ms.GraceEndDate,
+                MarketSectorId = ms.User.MerchantProfile?.Brand?.MarketSectorId,
+                MarketSectorName = ms.User.MerchantProfile?.Brand?.MarketSector?.Name,
+                MarketSectorSlug = ms.User.MerchantProfile?.Brand?.MarketSector?.Slug,
                 MasterCategories = ms.User.MerchantProfile?.Brand?.MasterCategories.Select(c => c.Name).ToList() ?? new List<string>(),
                 MasterCategoryIds = ms.User.MerchantProfile?.Brand?.MasterCategories.Select(c => c.Id).ToList() ?? new List<int>(),
                 PlanName = ms.Plan?.Name ?? (ms.IsTrial ? "Free Trial" : "Custom"),
@@ -763,15 +887,27 @@ namespace CityOrders.Api.API.Controllers
         {
             var brand = await _context.Brands
                 .Include(b => b.MasterCategories)
+                .Include(b => b.MarketSector)
                 .Include(b => b.MerchantProfile)
                 .FirstOrDefaultAsync(b => b.MerchantUserId == userId);
 
             if (brand == null) return NotFound("Brand not found for this merchant.");
 
-            brand.MasterCategories.Clear();
             var categories = await _context.Categories
                 .Where(c => categoryIds.Contains(c.Id))
                 .ToListAsync();
+
+            if (categories.Count != categoryIds.Distinct().Count())
+                return BadRequest("One or more categories were not found.");
+
+            var sectorIds = categories.Select(c => c.MarketSectorId).Distinct().ToList();
+            if (sectorIds.Count > 1)
+                return BadRequest("All merchant categories must belong to the same market sector.");
+
+            if (sectorIds.Count == 1)
+                brand.MarketSectorId = sectorIds[0];
+
+            brand.MasterCategories.Clear();
             
             foreach (var cat in categories) brand.MasterCategories.Add(cat);
 

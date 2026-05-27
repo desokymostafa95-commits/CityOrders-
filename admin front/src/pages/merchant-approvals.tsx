@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/api/client';
 import { toast } from 'sonner';
-import { Check, X, UserCheck, RotateCcw, Loader2, MapPin, Store } from 'lucide-react';
+import { X, UserCheck, RotateCcw, MapPin, Store } from 'lucide-react';
+import { useTranslation } from '@/context/LanguageContext';
+import { cn } from '@/lib/utils';
 
 const getServerImageUrl = (path?: string) => {
     if (!path) return null;
@@ -13,6 +15,7 @@ const getServerImageUrl = (path?: string) => {
 };
 
 export const MerchantApprovalsPage: React.FC = () => {
+    const { t, language } = useTranslation();
     const queryClient = useQueryClient();
     const [status, setStatus] = useState<'pending' | 'rejected'>('pending');
 
@@ -26,10 +29,10 @@ export const MerchantApprovalsPage: React.FC = () => {
         mutationFn: (userId: number) => apiClient.post(`Admin/approve-merchant/${userId}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['merchant-applications'] });
-            toast.success('Merchant approved successfully');
+            toast.success(t('approvals.success.approve'));
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message || 'Failed to approve merchant');
+            toast.error(error.response?.data?.message || t('approvals.failedApprove'));
         }
     });
 
@@ -38,29 +41,29 @@ export const MerchantApprovalsPage: React.FC = () => {
             apiClient.post(`Admin/reject-merchant/${userId}`, { reason }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['merchant-applications'] });
-            toast.success('Merchant application rejected');
+            toast.success(t('approvals.success.reject'));
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message || 'Failed to reject merchant');
+            toast.error(error.response?.data?.message || t('approvals.failedReject'));
         }
     });
 
-    if (isLoading) return <div>Loading...</div>;
+    if (isLoading) return <div className="p-8 text-center text-slate-500">{t('approvals.loading')}</div>;
 
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-3xl font-bold">Merchant Approvals</h1>
-                    <p className="text-slate-500 mt-1">Review and approve new merchant registrations.</p>
+                    <h1 className="text-3xl font-bold">{t('approvals.title')}</h1>
+                    <p className="text-slate-500 mt-1">{t('approvals.subtitle')}</p>
                 </div>
                 <button
                     onClick={() => refetch()}
                     disabled={isLoading || isRefetching}
                     className="inline-flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50 shadow-sm"
                 >
-                    <RotateCcw className={`mr-2 h-4 w-4 ${(isLoading || isRefetching) ? 'animate-spin' : ''}`} />
-                    Refresh
+                    <RotateCcw className={cn("h-4 w-4", (isLoading || isRefetching) ? 'animate-spin' : '', language === 'ar' ? 'ml-2' : 'mr-2')} />
+                    {t('approvals.refresh')}
                 </button>
             </div>
 
@@ -69,31 +72,31 @@ export const MerchantApprovalsPage: React.FC = () => {
                     onClick={() => setStatus('pending')}
                     className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${status === 'pending' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
-                    Pending Review
+                    {t('approvals.pendingReview')}
                 </button>
                 <button
                     onClick={() => setStatus('rejected')}
                     className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${status === 'rejected' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
-                    Rejected / Require Fix
+                    {t('approvals.rejectedRequireFix')}
                 </button>
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left">
+                <table className="w-full text-start">
                     <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Merchant Info</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Brand Name</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Reason</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Date</th>
-                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Actions</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-start">{t('approvals.merchantInfo')}</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-start">{t('approvals.brandName')}</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-start">{t('approvals.reason')}</th>
+                            <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-start">{t('approvals.date')}</th>
+                            <th className={cn("px-6 py-3 text-xs font-semibold text-slate-500 uppercase", language === 'ar' ? "text-left" : "text-right")}>{t('approvals.actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                         {applications?.map((app: any) => (
                             <tr key={app.userId} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4 text-start">
                                     <div className="flex items-center gap-3">
                                         <div className="h-10 w-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                                             {app.logoUrl ? (
@@ -121,51 +124,53 @@ export const MerchantApprovalsPage: React.FC = () => {
                                         </div>
                                     )}
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4 text-start">
                                     <div className="text-sm font-medium text-indigo-600">{app.brandName || 'N/A'}</div>
-                                    <div className="text-[11px] text-slate-400 mt-1 font-medium">{app.brandPhone || 'No phone'}</div>
-                                    <div className="text-xs text-slate-500 mt-1">{app.brandAddress || 'No address provided'}</div>
+                                    <div className="text-[11px] text-slate-400 mt-1 font-medium">{app.brandPhone || t('approvals.noPhone')}</div>
+                                    <div className="text-xs text-slate-500 mt-1">{app.brandAddress || t('approvals.noAddress')}</div>
                                     {app.lat && app.lng && (
                                         <a
-                                            href={`https://www.google.com/maps/search/?api=1&query=${app.lat},${app.lng}`}
+                                            href={`https://www.openstreetmap.org/?mlat=${app.lat}&mlon=${app.lng}#map=17/${app.lat}/${app.lng}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex items-center text-[10px] text-primary hover:underline mt-2 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"
                                         >
-                                            <MapPin size={10} className="mr-1" /> View on Maps
+                                            <MapPin size={10} className={language === 'ar' ? 'ml-1' : 'mr-1'} /> {t('approvals.viewOnMap')}
                                         </a>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 text-sm text-slate-600">
+                                <td className="px-6 py-4 text-sm text-slate-600 text-start">
                                     <div className="max-w-xs truncate" title={app.approvalRequestReason}>
-                                        {app.approvalRequestReason || 'Initial application'}
+                                        {app.approvalRequestReason || t('approvals.initialApplication')}
                                     </div>
                                     {app.rejectionReason && (
                                         <div className="text-xs text-red-500 mt-1 italic">
-                                            Last rejection: {app.rejectionReason}
+                                            {t('approvals.lastRejection')} {app.rejectionReason}
                                         </div>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 text-sm text-slate-600">
-                                    {new Date(app.createdAt).toLocaleDateString()}
+                                <td className="px-6 py-4 text-sm text-slate-600 text-start">
+                                    {new Date(app.createdAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
                                 </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end gap-2">
+                                <td className={cn("px-6 py-4", language === 'ar' ? "text-left" : "text-right")}>
+                                    <div className={cn("flex gap-2", language === 'ar' ? "justify-start" : "justify-end")}>
                                         <button
                                             onClick={() => {
-                                                if (confirm(`Are you sure you want to approve ${app.userName}?`)) {
+                                                const msg = t('approvals.confirmApprove').replace('{name}', app.userName);
+                                                if (confirm(msg)) {
                                                     approveMutation.mutate(app.userId);
                                                 }
                                             }}
                                             disabled={approveMutation.isPending || rejectMutation.isPending}
                                             className="inline-flex items-center px-4 py-2 bg-primary text-white text-sm font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
                                         >
-                                            <UserCheck className="mr-2 h-4 w-4" /> Approve
+                                            <UserCheck className={language === 'ar' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} /> {t('approvals.approve')}
                                         </button>
                                         {status === 'pending' ? (
                                             <button
                                                 onClick={() => {
-                                                    const reason = prompt(`What is the reason for rejecting ${app.userName}?`);
+                                                    const msg = t('approvals.confirmReject').replace('{name}', app.userName);
+                                                    const reason = prompt(msg);
                                                     if (reason) {
                                                         rejectMutation.mutate({ userId: app.userId, reason });
                                                     }
@@ -173,11 +178,11 @@ export const MerchantApprovalsPage: React.FC = () => {
                                                 disabled={approveMutation.isPending || rejectMutation.isPending}
                                                 className="inline-flex items-center px-4 py-2 border border-red-200 text-red-600 bg-red-50 text-sm font-medium rounded-md hover:bg-red-100 transition-colors disabled:opacity-50"
                                             >
-                                                <X className="mr-2 h-4 w-4" /> Reject
+                                                <X className={language === 'ar' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} /> {t('approvals.reject')}
                                             </button>
                                         ) : (
                                             <span className="inline-flex items-center px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full border border-red-200 uppercase tracking-wide">
-                                                Rejected
+                                                {t('approvals.rejected')}
                                             </span>
                                         )}
                                     </div>
@@ -187,7 +192,7 @@ export const MerchantApprovalsPage: React.FC = () => {
                         {applications?.length === 0 && (
                             <tr>
                                 <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic">
-                                    No {status} merchant applications.
+                                    {status === 'pending' ? t('approvals.noPending') : t('approvals.noRejected')}
                                 </td>
                             </tr>
                         )}

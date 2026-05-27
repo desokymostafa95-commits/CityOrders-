@@ -12,10 +12,12 @@ import {
     X,
     Trash2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { AuditActionType } from '@/types/admin';
+import { useTranslation } from '@/context/LanguageContext';
+import { cn } from '@/lib/utils';
 
 export const AuditLogPage: React.FC = () => {
+    const { t, language } = useTranslation();
     const [dateRange, setDateRange] = useState('7');
     const [actionType, setActionType] = useState('');
 
@@ -67,61 +69,70 @@ export const AuditLogPage: React.FC = () => {
     return (
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold">Audit Log</h1>
-                    <p className="text-slate-500 mt-1">Track all administrative actions and system changes.</p>
+                <div className={cn(language === 'ar' ? "text-right" : "text-left")}>
+                    <h1 className="text-3xl font-bold">{t('audit.title')}</h1>
+                    <p className="text-slate-500 mt-1">{t('audit.subtitle')}</p>
                 </div>
             </div>
 
             {/* Filters */}
             <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-                <div className="flex flex-wrap items-center gap-6">
-                    <div className="flex items-center gap-3">
+                <div className={cn("flex flex-wrap items-center gap-6", language === 'ar' ? "flex-row-reverse" : "")}>
+                    <div className={cn("flex items-center gap-3", language === 'ar' ? "flex-row-reverse" : "")}>
                         <Filter className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-700">Filters:</span>
+                        <span className="text-sm font-medium text-slate-700">
+                            {language === 'ar' ? "تصفية:" : "Filters:"}
+                        </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Date Range</label>
+                    <div className={cn("flex items-center gap-2", language === 'ar' ? "flex-row-reverse" : "")}>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                            {language === 'ar' ? "النطاق الزمني" : "Date Range"}
+                        </label>
                         <select
                             value={dateRange}
                             onChange={(e) => setDateRange(e.target.value)}
-                            className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                            className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-white"
                         >
-                            <option value="7">Last 7 Days</option>
-                            <option value="30">Last 30 Days</option>
-                            <option value="90">Last 90 Days</option>
+                            <option value="7">{t('audit.time.7days')}</option>
+                            <option value="30">{t('audit.time.30days')}</option>
+                            <option value="90">{t('audit.time.90days')}</option>
                         </select>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Action Type</label>
+                    <div className={cn("flex items-center gap-2", language === 'ar' ? "flex-row-reverse" : "")}>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-tighter">
+                            {t('audit.actionType')}
+                        </label>
                         <select
                             value={actionType}
                             onChange={(e) => setActionType(e.target.value)}
-                            className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                            className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-white"
                         >
-                            <option value="">All Actions</option>
-                            <option value="MerchantApproved">Merchant Approval</option>
-                            <option value="MerchantRejected">Merchant Rejection</option>
-                            <option value="PaymentApproved">Payment Approval</option>
-                            <option value="PaymentRejected">Payment Rejection</option>
-                            <option value="SubscriptionExtend">Subscription Extend</option>
-                            <option value="ForceExpire">Force Expire</option>
-                            <option value="SettingsChanged">Settings Change</option>
-                            <option value="PlanCreated">Plan Created</option>
-                            <option value="PlanUpdated">Plan Updated</option>
-                            <option value="PlanToggled">Plan Toggled</option>
-                            <option value="PlanDeleted">Plan Deleted</option>
+                            <option value="">{t('audit.allActions')}</option>
+                            <option value="MerchantApproved">{t('audit.actions.MerchantApproved')}</option>
+                            <option value="MerchantRejected">{t('audit.actions.MerchantRejected')}</option>
+                            <option value="PaymentApproved">{t('audit.actions.PaymentApproved')}</option>
+                            <option value="PaymentRejected">{t('audit.actions.PaymentRejected')}</option>
+                            <option value="SubscriptionExtend">{t('audit.actions.SubscriptionExtend')}</option>
+                            <option value="ForceExpire">{t('audit.actions.ForceExpire')}</option>
+                            <option value="SettingsChanged">{t('audit.actions.SettingsChanged')}</option>
+                            <option value="PlanCreated">{t('audit.actions.PlanCreated')}</option>
+                            <option value="PlanUpdated">{t('audit.actions.PlanUpdated')}</option>
+                            <option value="PlanToggled">{t('audit.actions.PlanToggled')}</option>
+                            <option value="PlanDeleted">{t('audit.actions.PlanDeleted')}</option>
                         </select>
                     </div>
 
                     <div className="flex-1 min-w-[200px] relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Search className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400", language === 'ar' ? "right-3" : "left-3")} />
                         <input
                             type="text"
-                            placeholder="Filter by description or target..."
-                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none"
+                            placeholder={t('audit.search')}
+                            className={cn(
+                                "w-full py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none",
+                                language === 'ar' ? "pl-4 pr-10 text-right" : "pl-10 pr-4 text-left"
+                            )}
                             disabled
                         />
                     </div>
@@ -133,18 +144,20 @@ export const AuditLogPage: React.FC = () => {
                     <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Activity className="h-8 w-8 text-slate-400" />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-2">Audit API Not Available</h3>
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">{t('audit.apiNotAvailable')}</h3>
                     <p className="text-slate-500 mb-8 leading-relaxed">
-                        The auditing feature requires a specialized backend endpoint to fetch historical admin actions.
-                        Please add the <code className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-700">/api/admin/audit</code> endpoint to enable this view.
+                        {t('audit.apiRequired')}
                     </p>
                     <button
                         onClick={() => refetch()}
-                        className="px-8 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all font-bold shadow-lg shadow-slate-200 flex items-center gap-2 mx-auto"
+                        className={cn(
+                            "px-8 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-all font-bold shadow-lg shadow-slate-200 flex items-center gap-2 mx-auto",
+                            language === 'ar' ? "flex-row-reverse" : ""
+                        )}
                     >
-                        <RotateCw className="w-4 h-4" /> Check Again
+                        <RotateCw className="w-4 h-4" /> {t('audit.checkAgain')}
                     </button>
-                    <div className="mt-8 pt-8 border-t border-slate-200 grid grid-cols-2 gap-4 text-left opacity-40">
+                    <div className="mt-8 pt-8 border-t border-slate-200 grid grid-cols-2 gap-4 text-start opacity-40">
                         <div className="h-4 bg-slate-200 rounded w-full"></div>
                         <div className="h-4 bg-slate-200 rounded w-2/3"></div>
                         <div className="h-4 bg-slate-200 rounded w-3/4"></div>
@@ -153,14 +166,14 @@ export const AuditLogPage: React.FC = () => {
                 </div>
             ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-start border-collapse">
                         <thead className="bg-slate-50/80 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Date / Time</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Action</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Target</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Administrator</th>
-                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Summary</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-start">{t('audit.headers.dateTime')}</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-start">{t('audit.headers.action')}</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-start">{t('audit.headers.target')}</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-start">{t('audit.headers.admin')}</th>
+                                <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-start">{t('audit.headers.summary')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -175,37 +188,37 @@ export const AuditLogPage: React.FC = () => {
                             ) : logs?.length ? (
                                 logs.map((log) => (
                                     <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-4 text-sm tabular-nums text-slate-500">
-                                            {new Date(log.timestamp).toLocaleString(undefined, {
+                                        <td className="px-6 py-4 text-sm tabular-nums text-slate-500 text-start">
+                                            {new Date(log.timestamp).toLocaleString(language === 'ar' ? 'ar-EG' : undefined, {
                                                 month: 'short',
                                                 day: 'numeric',
                                                 hour: '2-digit',
                                                 minute: '2-digit'
                                             })}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2.5">
+                                        <td className="px-6 py-4 text-start">
+                                            <div className={cn("flex items-center gap-2.5", language === 'ar' ? "flex-row-reverse justify-end" : "")}>
                                                 <ActionIcon type={log.action} />
-                                                <span className="text-sm font-medium text-slate-900">{log.action}</span>
+                                                <span className="text-sm font-medium text-slate-900">{t(`audit.actions.${log.action}`) || log.action}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 text-start">
                                             <span className="text-sm text-slate-600 bg-slate-100 px-2 py-0.5 rounded font-mono">
                                                 {log.target}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
+                                        <td className="px-6 py-4 text-start">
+                                            <div className={cn("flex items-center gap-2", language === 'ar' ? "flex-row-reverse justify-end" : "")}>
                                                 <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
                                                     <User className="w-3 h-3 text-indigo-600" />
                                                 </div>
-                                                <div className="flex flex-col">
+                                                <div className={cn("flex flex-col", language === 'ar' ? "items-end" : "items-start")}>
                                                     <span className="text-sm font-medium text-slate-700">{log.adminName}</span>
                                                     <span className="text-[10px] text-slate-400 font-mono tracking-tighter -mt-0.5">{log.adminEmail}</span>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 text-start">
                                             <p className="text-sm text-slate-500 line-clamp-1 italic">"{log.summary}"</p>
                                         </td>
                                     </tr>
@@ -215,7 +228,7 @@ export const AuditLogPage: React.FC = () => {
                                     <td colSpan={5} className="px-6 py-20 text-center">
                                         <div className="max-w-xs mx-auto space-y-3 opacity-20 grayscale">
                                             <Activity className="h-12 w-12 mx-auto" />
-                                            <p className="text-sm font-medium">No activity records found for this period.</p>
+                                            <p className="text-sm font-medium">{t('audit.noLogs')}</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -245,3 +258,5 @@ const RotateCw = (props: any) => (
         <path d="M21 3v5h-5" />
     </svg>
 )
+
+export default AuditLogPage;

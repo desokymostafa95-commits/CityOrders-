@@ -1,22 +1,26 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, HelperText, useTheme } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { Text, TextInput, Button, HelperText, useTheme, ActivityIndicator } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link, router } from 'expo-router';
+import * as Location from 'expo-location';
 import http, { setToken } from '../../src/api/http';
 import { ENDPOINTS } from '../../src/api/endpoints';
+import { MapLocationPicker } from '../../src/components/MapLocationPicker';
+import { friendlyError } from '../../src/utils/messages';
+import { Target } from 'lucide-react-native';
 
 const registerSchema = z.object({
-    name: z.string().min(3, 'Full name must be at least 3 characters'),
-    phone: z.string().regex(/^01[0125][0-9]{8}$/, 'Invalid Egyptian phone number'),
-    email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string().min(6, 'Confirm password must be at least 6 characters'),
-    addressLine: z.string().min(5, 'Initial address is required'),
+    name: z.string().min(3, 'الاسم يجب أن يكون 3 أحرف على الأقل'),
+    phone: z.string().regex(/^01[0125][0-9]{8}$/, 'رقم الهاتف المصري غير صحيح'),
+    email: z.string().email('البريد الإلكتروني غير صحيح'),
+    password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
+    confirmPassword: z.string().min(6, 'تأكيد كلمة المرور مطلوب'),
+    addressLine: z.string().min(5, 'العنوان مطلوب'),
 }).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
+    message: 'كلمتا المرور غير متطابقتين',
     path: ["confirmPassword"],
 });
 
@@ -26,6 +30,8 @@ export default function RegisterScreen() {
     const theme = useTheme();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [locating, setLocating] = useState(false);
 
     const { control, handleSubmit, formState: { errors } } = useForm<RegisterForm>({
         resolver: zodResolver(registerSchema),
@@ -39,6 +45,53 @@ export default function RegisterScreen() {
         },
     });
 
+    // Auto-detect location on mount
+    useEffect(() => {
+        detectLocation();
+    }, []);
+
+    const detectLocation = async () => {
+        setLocating(true);
+        try {
+            if (Platform.OS === 'web') {
+                // Use browser Geolocation API on web
+                if ('geolocation' in navigator) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            setSelectedLocation({
+                                lat: position.coords.latitude,
+                                lng: position.coords.longitude,
+                            });
+                            setLocating(false);
+                        },
+                        () => {
+                            // Permission denied or error — stay on default Cairo
+                            setLocating(false);
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+                    );
+                } else {
+                    setLocating(false);
+                }
+            } else {
+                // Use expo-location on native
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    setLocating(false);
+                    return;
+                }
+                const loc = await Location.getCurrentPositionAsync({});
+                setSelectedLocation({
+                    lat: loc.coords.latitude,
+                    lng: loc.coords.longitude,
+                });
+                setLocating(false);
+            }
+        } catch {
+            setLocating(false);
+        }
+    };
+
     const onSubmit = async (data: RegisterForm) => {
         setLoading(true);
         setError(null);
@@ -48,29 +101,15 @@ export default function RegisterScreen() {
                 email: data.email,
                 password: data.password,
                 addressLine: data.addressLine,
+                lat: selectedLocation?.lat,
+                lng: selectedLocation?.lng,
             });
 
-            // Store token and go to home
             const { token } = response.data;
             await setToken(token);
             router.replace('/(tabs)/home');
         } catch (err: any) {
-            // Parse backend error response for better display
-            const res = err.response?.data;
-            if (typeof res === 'string') {
-                setError(res);
-            } else if (res?.errors) {
-                // Handle validation errors object
-                const messages = Object.values(res.errors).flat().join(', ');
-                setError(messages || 'Validation failed.');
-            } else if (res?.title) {
-                setError(res.title + (res.detail ? `: ${res.detail}` : ''));
-            } else if (res?.message) {
-                setError(res.message);
-            } else {
-                setError(`Registration failed (${err.response?.status || 'Network error'}). Please try again.`);
-            }
-            console.error('Registration error:', err.response?.data);
+            setError(friendlyError(err, 'فشل إنشاء الحساب. حاول مرة أخرى.'));
         } finally {
             setLoading(false);
         }
@@ -87,12 +126,12 @@ export default function RegisterScreen() {
                         CityOrders
                     </Text>
                     <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                        Join us today
+                        أنشئ حسابك وسجل عنوانك
                     </Text>
                 </View>
 
                 <View style={styles.form}>
-                    <Text variant="headlineSmall" style={styles.title}>Create Account</Text>
+                    <Text variant="headlineSmall" style={styles.title}>إنشاء حساب</Text>
 
                     <Controller
                         control={control}
@@ -100,7 +139,7 @@ export default function RegisterScreen() {
                         render={({ field: { onChange, onBlur, value } }) => (
                             <View style={styles.inputContainer}>
                                 <TextInput
-                                    label="Full Name"
+                                    label="الاسم بالكامل"
                                     value={value}
                                     onBlur={onBlur}
                                     onChangeText={onChange}
@@ -118,7 +157,7 @@ export default function RegisterScreen() {
                         render={({ field: { onChange, onBlur, value } }) => (
                             <View style={styles.inputContainer}>
                                 <TextInput
-                                    label="Phone Number"
+                                    label="رقم الهاتف"
                                     value={value}
                                     onBlur={onBlur}
                                     onChangeText={onChange}
@@ -137,7 +176,7 @@ export default function RegisterScreen() {
                         render={({ field: { onChange, onBlur, value } }) => (
                             <View style={styles.inputContainer}>
                                 <TextInput
-                                    label="Email"
+                                    label="البريد الإلكتروني"
                                     value={value}
                                     onBlur={onBlur}
                                     onChangeText={onChange}
@@ -157,7 +196,7 @@ export default function RegisterScreen() {
                         render={({ field: { onChange, onBlur, value } }) => (
                             <View style={styles.inputContainer}>
                                 <TextInput
-                                    label="Initial Address"
+                                    label="العنوان"
                                     value={value}
                                     onBlur={onBlur}
                                     onChangeText={onChange}
@@ -171,13 +210,47 @@ export default function RegisterScreen() {
                         )}
                     />
 
+                    <View style={styles.inputContainer}>
+                        <Text variant="titleSmall" style={styles.mapTitle}>حدد مكانك على الخريطة</Text>
+
+                        <Button
+                            mode="contained-tonal"
+                            icon={() => <Target size={20} color={theme.colors.primary} />}
+                            onPress={detectLocation}
+                            loading={locating}
+                            disabled={locating}
+                            style={styles.locationBtn}
+                        >
+                            📍 استخدام موقعي الحالي
+                        </Button>
+
+                        {locating && (
+                            <View style={styles.locatingRow}>
+                                <ActivityIndicator size="small" color={theme.colors.primary} />
+                                <Text variant="bodySmall" style={styles.locatingText}>جاري تحديد موقعك...</Text>
+                            </View>
+                        )}
+
+                        <MapLocationPicker
+                            latitude={selectedLocation?.lat ?? 30.0444}
+                            longitude={selectedLocation?.lng ?? 31.2357}
+                            onChange={setSelectedLocation}
+                            height={220}
+                        />
+                        <HelperText type={selectedLocation ? 'info' : 'error'} visible>
+                            {selectedLocation
+                                ? `تم اختيار الموقع: ${selectedLocation.lat.toFixed(5)}, ${selectedLocation.lng.toFixed(5)}`
+                                : 'اختيار الموقع يساعد التاجر على حساب التوصيل بدقة.'}
+                        </HelperText>
+                    </View>
+
                     <Controller
                         control={control}
                         name="password"
                         render={({ field: { onChange, onBlur, value } }) => (
                             <View style={styles.inputContainer}>
                                 <TextInput
-                                    label="Password"
+                                    label="كلمة المرور"
                                     value={value}
                                     onBlur={onBlur}
                                     onChangeText={onChange}
@@ -196,7 +269,7 @@ export default function RegisterScreen() {
                         render={({ field: { onChange, onBlur, value } }) => (
                             <View style={styles.inputContainer}>
                                 <TextInput
-                                    label="Confirm Password"
+                                    label="تأكيد كلمة المرور"
                                     value={value}
                                     onBlur={onBlur}
                                     onChangeText={onChange}
@@ -218,14 +291,14 @@ export default function RegisterScreen() {
                         disabled={loading}
                         style={styles.button}
                     >
-                        Register
+                        إنشاء الحساب
                     </Button>
 
                     <View style={styles.footer}>
-                        <Text variant="bodyMedium">Already have an account? </Text>
+                        <Text variant="bodyMedium">لديك حساب بالفعل؟ </Text>
                         <Link href="/(auth)/login" asChild>
                             <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
-                                Login here
+                                تسجيل الدخول
                             </Text>
                         </Link>
                     </View>
@@ -258,6 +331,23 @@ const styles = StyleSheet.create({
     },
     inputContainer: {
         marginBottom: 2,
+    },
+    mapTitle: {
+        fontWeight: '700',
+        marginBottom: 8,
+    },
+    locationBtn: {
+        marginBottom: 12,
+        borderRadius: 10,
+    },
+    locatingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+        gap: 8,
+    },
+    locatingText: {
+        color: '#757575',
     },
     button: {
         marginTop: 12,

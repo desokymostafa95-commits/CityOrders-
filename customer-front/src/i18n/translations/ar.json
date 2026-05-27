@@ -1,0 +1,32 @@
+{
+  "tabs": {
+    "home": "الرئيسية",
+    "offers": "العروض",
+    "cart": "السلة",
+    "orders": "الطلبات",
+    "profile": "الحساب"
+  },
+  "errors": {
+    "network": "خطأ في الاتصال",
+    "network_message": "فشل الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت."
+  },
+  "profile": {
+    "title": "الحساب",
+    "customer": "عميل",
+    "notifications": "التنبيهات",
+    "mark_all_read": "تعيين الكل كمقروء",
+    "no_notifications": "لا توجد تنبيهات حاليا",
+    "my_addresses": "عناويني",
+    "manage_addresses": "إدارة أماكن التوصيل المحفوظة",
+    "settings": "الإعدادات",
+    "settings_desc": "تفضيلات التطبيق واللغة",
+    "terms_privacy": "الشروط والخصوصية",
+    "terms_privacy_desc": "الأمان وسياسة الاستخدام",
+    "logout": "تسجيل الخروج",
+    "change_lang_title": "تغيير لغة التطبيق",
+    "change_lang_message": "يرجى تحديد لغة التطبيق المفضلة:",
+    "change_lang_restart": "سيتم تغيير اتجاه النصوص والواجهة. يرجى إعادة تشغيل التطبيق لتطبيق التغييرات بشكل كامل.",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد"
+  }
+}

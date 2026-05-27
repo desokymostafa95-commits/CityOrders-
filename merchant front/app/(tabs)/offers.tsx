@@ -23,7 +23,7 @@ export default function OffersScreen() {
     const [formData, setFormData] = useState({
         productId: 0,
         offerPrice: '',
-        durationHours: '24', // Default 24 hours
+        durationHours: '24',
         isActive: true
     });
 
@@ -32,7 +32,7 @@ export default function OffersScreen() {
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
-        }, 60000); // Refreshes "Time Remaining" every minute
+        }, 60000);
         return () => clearInterval(timer);
     }, []);
 
@@ -89,21 +89,16 @@ export default function OffersScreen() {
     };
 
     const handleSave = () => {
-        console.log('OffersScreen handleSave triggered', { formData, selectedOffer });
-
         if (!formData.productId) {
-            console.warn('Validation failed: No product selected');
             Alert.alert(t('common.error'), t('offers.validation.product_required'));
             return;
         }
         if (!formData.offerPrice || parseFloat(formData.offerPrice) <= 0) {
-            console.warn('Validation failed: Invalid price', formData.offerPrice);
             Alert.alert(t('common.error'), t('offers.validation.price_positive'));
             return;
         }
         const duration = parseInt(formData.durationHours);
         if (isNaN(duration) || duration <= 0) {
-            console.warn('Validation failed: Invalid duration', formData.durationHours);
             Alert.alert(t('common.error'), t('offers.validation.duration_positive'));
             return;
         }
@@ -118,15 +113,12 @@ export default function OffersScreen() {
             endAt: endAt.toISOString(),
         };
 
-        console.log('Sending payload:', payload);
-
         if (selectedOffer) {
             updateMutation.mutate({
                 id: selectedOffer.id,
                 data: { ...payload, isActive: formData.isActive }
             }, {
                 onSuccess: () => {
-                    console.log('Offer updated successfully');
                     setDialogVisible(false);
                 },
                 onError: (error: any) => {
@@ -141,7 +133,6 @@ export default function OffersScreen() {
         } else {
             createMutation.mutate(payload, {
                 onSuccess: () => {
-                    console.log('Offer created successfully');
                     setDialogVisible(false);
                 },
                 onError: (error: any) => {

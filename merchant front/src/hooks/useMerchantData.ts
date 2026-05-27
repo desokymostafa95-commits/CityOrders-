@@ -5,12 +5,10 @@ import { productsApi } from '../api/productsApi';
 import { invoicesApi } from '../api/invoicesApi';
 import { subscriptionApi } from '../api/subscriptionApi';
 import { merchantApi } from '../api/merchantApi';
-import { MerchantSubscriptionStatusDto, BrandDto, OrderListItem, ProductDto, PaginatedResult, MerchantProfileDto, CurrentShiftDto, MerchantAvailabilityDto, TemporaryCloseDto, MerchantStoreLocation } from '../types';
+import { MerchantSubscriptionStatusDto, BrandDto, OrderListItem, ProductDto, PaginatedResult, MerchantProfileDto, CurrentShiftDto, MerchantAvailabilityDto, TemporaryCloseDto, MerchantStoreLocation, NotificationResponse, ChatThreadSummary, ChatThreadDetail, ChatMessage, MerchantOrderDetail, MerchantAnalyticsOverview, MarketSectorDto } from '../types';
 import { t } from '../i18n';
 
-// Helper function that works on both web and native
 const showAlert = (title: string, message: string) => {
-    console.log(`[ALERT] ${title}: ${message}`);
     if (Platform.OS === 'web') {
         window.alert(`${title}\n\n${message}`);
     } else {
@@ -69,6 +67,24 @@ export function useMyOrders(status?: string, page = 1, options?: { enabled?: boo
         queryKey: ['my-orders', status, page],
         queryFn: () => productsApi.getOrders(status, page),
         enabled: options?.enabled ?? true,
+        refetchInterval: 5000,
+    });
+}
+
+export function useMarketSectors(options?: { enabled?: boolean }) {
+    return useQuery<MarketSectorDto[]>({
+        queryKey: ['market-sectors'],
+        queryFn: merchantApi.getMarketSectors,
+        staleTime: 5 * 60 * 1000,
+        enabled: options?.enabled ?? true,
+    });
+}
+
+export function useMyOrder(orderId?: number, options?: { enabled?: boolean }) {
+    return useQuery<MerchantOrderDetail>({
+        queryKey: ['my-order', orderId],
+        queryFn: () => productsApi.getOrder(orderId!),
+        enabled: (options?.enabled ?? true) && !!orderId,
     });
 }
 
@@ -192,5 +208,152 @@ export function useUpdateBrandLogo() {
         },
     });
 }
+
+export function useMerchantAnalytics(days = 30, options?: { enabled?: boolean }) {
+    return useQuery<MerchantAnalyticsOverview>({
+        queryKey: ['merchant-analytics', days],
+        queryFn: () => merchantApi.getAnalyticsOverview(days),
+        refetchInterval: 5000,
+        refetchIntervalInBackground: true,
+        refetchOnMount: 'always',
+        refetchOnReconnect: true,
+        refetchOnWindowFocus: true,
+        staleTime: 0,
+        enabled: options?.enabled ?? true,
+    });
+}
+
+export function useNotifications(options?: { unreadOnly?: boolean; enabled?: boolean }) {
+    return useQuery<NotificationResponse>({
+        queryKey: ['notifications', options?.unreadOnly ?? false],
+        queryFn: async () => {
+            const response = await apiClient.get('/Notifications', {
+                params: { unreadOnly: options?.unreadOnly || undefined },
+            });
+            return response.data;
+        },
+        refetchInterval: 8000,
+        enabled: options?.enabled ?? true,
+    });
+}
+
+export function useMarkNotificationRead() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: number) => {
+            const response = await apiClient.put(`/Notifications/${id}/read`);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        },
+    });
+}
+
+export function useChatThreads(options?: { type?: string; enabled?: boolean }) {
+    return useQuery<ChatThreadSummary[]>({
+        queryKey: ['chat-threads', options?.type],
+        queryFn: async () => {
+            const response = await apiClient.get('/Chat/threads', {
+                params: { type: options?.type || undefined },
+            });
+            return response.data;
+        },
+        refetchInterval: 15000,
+        enabled: options?.enabled ?? true,
+    });
+}
+
+export function useChatThread(threadId: number, options?: { enabled?: boolean }) {
+    return useQuery<ChatThreadDetail>({
+        queryKey: ['chat-thread', threadId],
+        queryFn: async () => {
+            const response = await apiClient.get(`/Chat/threads/${threadId}`);
+            return response.data;
+        },
+        refetchInterval: 3000,
+        refetchOnWindowFocus: true,
+        enabled: (options?.enabled ?? true) && !!threadId,
+    });
+}
+
+export function useMerchantOrderChatThread() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (orderId: number) => {
+            const response = await apiClient.post<ChatThreadSummary>(`/Chat/merchant/orders/${orderId}/thread`);
+            return response.data;
+        },
+        onSuccess: (thread) => {
+            queryClient.invalidateQueries({ queryKey: ['chat-threads'] });
+            queryClient.invalidateQueries({ queryKey: ['chat-thread', thread.id] });
+        },
+    });
+}
+
+export function useMerchantAdminChatThread() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async () => {
+            const response = await apiClient.post<ChatThreadSummary>('/Chat/merchant/admin/thread');
+            return response.data;
+        },
+        onSuccess: (thread) => {
+            queryClient.invalidateQueries({ queryKey: ['chat-threads'] });
+            queryClient.invalidateQueries({ queryKey: ['chat-thread', thread.id] });
+        },
+    });
+}
+
+export function useSendChatMessage(threadId: number) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ body, attachmentUrl }: { body: string; attachmentUrl?: string }) => {
+            const response = await apiClient.post<ChatMessage>(`/Chat/threads/${threadId}/messages`, { body, attachmentUrl });
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['chat-threads'] });
+            queryClient.invalidateQueries({ queryKey: ['chat-thread', threadId] });
+        },
+    });
+}
+
+export function useBlockChatThread(threadId: number) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async () => {
+            const response = await apiClient.post(`/Chat/threads/${threadId}/block`);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['chat-threads'] });
+            queryClient.invalidateQueries({ queryKey: ['chat-thread', threadId] });
+        },
+        onError: (error: any) => {
+            const msg = error.response?.data?.message || error.message || 'Failed to block chat thread.';
+            showAlert(t('common.error'), msg);
+        },
+    });
+}
+
+export function useUnblockChatThread(threadId: number) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async () => {
+            const response = await apiClient.post(`/Chat/threads/${threadId}/unblock`);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['chat-threads'] });
+            queryClient.invalidateQueries({ queryKey: ['chat-thread', threadId] });
+        },
+        onError: (error: any) => {
+            const msg = error.response?.data?.message || error.message || 'Failed to unblock chat thread.';
+            showAlert(t('common.error'), msg);
+        },
+    });
+}
+
 
 

@@ -20,6 +20,8 @@ namespace CityOrders.Api.Application.DTOs
         public string BrandName { get; set; } = string.Empty;
         public string? BrandAddress { get; set; }
         public string? BrandPhone { get; set; }
+        public int MarketSectorId { get; set; } = 1;
+        public List<int> MasterCategoryIds { get; set; } = new();
     }
 
     public class BrandDto
@@ -29,12 +31,19 @@ namespace CityOrders.Api.Application.DTOs
         public string? Address { get; set; }
         public string? Phone1 { get; set; }
         public bool IsActive { get; set; }
+        public int MarketSectorId { get; set; }
+        public AdminMarketSectorDto? MarketSector { get; set; }
         public List<int> MasterCategoryIds { get; set; } = new();
         public List<AdminCategoryDto> MasterCategories { get; set; } = new();
         public decimal FixedDeliveryFee { get; set; }
         public decimal MinVariableDeliveryFee { get; set; }
         public decimal MaxVariableDeliveryFee { get; set; }
         public string DeliveryFeeType { get; set; } = "Fixed";
+        public decimal BaseDeliveryFee { get; set; }
+        public decimal FeePerKilometer { get; set; }
+        public decimal? MinDeliveryFee { get; set; }
+        public decimal? MaxDeliveryFee { get; set; }
+        public decimal? MaxDeliveryDistanceKm { get; set; }
         public string? LogoUrl { get; set; }
     }
 
@@ -73,11 +82,17 @@ namespace CityOrders.Api.Application.DTOs
         public string BrandName { get; set; } = string.Empty;
         public string? BrandAddress { get; set; }
         public string? BrandPhone { get; set; }
+        public int MarketSectorId { get; set; } = 1;
         public List<int> MasterCategoryIds { get; set; } = new();
         public decimal FixedDeliveryFee { get; set; }
         public decimal MinVariableDeliveryFee { get; set; }
         public decimal MaxVariableDeliveryFee { get; set; }
         public string DeliveryFeeType { get; set; } = "Fixed";
+        public decimal BaseDeliveryFee { get; set; }
+        public decimal FeePerKilometer { get; set; }
+        public decimal? MinDeliveryFee { get; set; }
+        public decimal? MaxDeliveryFee { get; set; }
+        public decimal? MaxDeliveryDistanceKm { get; set; }
     }
 
     public class UpdateProductDto

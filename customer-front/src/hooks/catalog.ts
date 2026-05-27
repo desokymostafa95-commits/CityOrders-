@@ -1,24 +1,46 @@
 import { useQuery } from '@tanstack/react-query';
 import http from '../api/http';
 import { ENDPOINTS } from '../api/endpoints';
-import { Category, Brand, Product, Offer, DeliveryQuote } from '../types';
+import { Category, Brand, Product, Offer, DeliveryQuote, BrandReview, MarketSector } from '../types';
 
-export const useCategories = () => {
+export const useMarketSectors = () => {
     return useQuery({
-        queryKey: ['categories'],
+        queryKey: ['market-sectors'],
         queryFn: async () => {
-            const { data } = await http.get<{ items: Category[] }>(ENDPOINTS.CATALOG.CATEGORIES);
+            const { data } = await http.get<{ items: MarketSector[] }>(ENDPOINTS.CATALOG.SECTORS);
             return data.items;
         },
     });
 };
 
-export const useBrands = (categorySlug?: string) => {
+export const useCategories = (sectorSlug?: string) => {
     return useQuery({
-        queryKey: ['brands', categorySlug],
+        queryKey: ['categories', sectorSlug],
+        queryFn: async () => {
+            const { data } = await http.get<{ items: Category[] }>(ENDPOINTS.CATALOG.CATEGORIES, {
+                params: { sector: sectorSlug || undefined },
+            });
+            return data.items;
+        },
+    });
+};
+
+export const useBrands = (
+    categorySlug?: string,
+    options?: { search?: string; sort?: string; lat?: number; lng?: number; sector?: string }
+) => {
+    return useQuery({
+        queryKey: ['brands', categorySlug, options],
         queryFn: async () => {
             const { data } = await http.get<{ items: Brand[] }>(ENDPOINTS.CATALOG.BRANDS, {
-                params: { category: categorySlug },
+                params: {
+                    category: categorySlug,
+                    search: options?.search || undefined,
+                    sort: options?.sort || undefined,
+                    sector: options?.sector || undefined,
+                    lat: options?.lat,
+                    lng: options?.lng,
+                },
             });
             return data.items;
         },
@@ -36,11 +58,27 @@ export const useBrandDetails = (brandId: number) => {
     });
 };
 
-export const useBrandProducts = (brandId: number) => {
+export const useBrandReviews = (brandId: number) => {
     return useQuery({
-        queryKey: ['brand-products', brandId],
+        queryKey: ['brand-reviews', brandId],
         queryFn: async () => {
-            const { data } = await http.get<Product[]>(ENDPOINTS.CATALOG.BRAND_PRODUCTS(brandId));
+            const { data } = await http.get<BrandReview[]>(ENDPOINTS.CATALOG.BRAND_REVIEWS(brandId));
+            return data;
+        },
+        enabled: !!brandId,
+    });
+};
+
+export const useBrandProducts = (brandId: number, options?: { search?: string; sort?: string }) => {
+    return useQuery({
+        queryKey: ['brand-products', brandId, options],
+        queryFn: async () => {
+            const { data } = await http.get<Product[]>(ENDPOINTS.CATALOG.BRAND_PRODUCTS(brandId), {
+                params: {
+                    search: options?.search || undefined,
+                    sort: options?.sort || undefined,
+                },
+            });
             return data;
         },
         enabled: !!brandId,

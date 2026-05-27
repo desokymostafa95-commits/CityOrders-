@@ -1,0 +1,32 @@
+{
+  "tabs": {
+    "home": "Home",
+    "offers": "Offers",
+    "cart": "Cart",
+    "orders": "Orders",
+    "profile": "Profile"
+  },
+  "errors": {
+    "network": "Connection Error",
+    "network_message": "Failed to connect to the server. Please check your internet connection."
+  },
+  "profile": {
+    "title": "Profile",
+    "customer": "Customer",
+    "notifications": "Notifications",
+    "mark_all_read": "Mark all as read",
+    "no_notifications": "No notifications currently",
+    "my_addresses": "My Addresses",
+    "manage_addresses": "Manage saved delivery locations",
+    "settings": "Settings",
+    "settings_desc": "App preferences and language",
+    "terms_privacy": "Terms & Privacy",
+    "terms_privacy_desc": "Security and usage policy",
+    "logout": "Logout",
+    "change_lang_title": "Change App Language",
+    "change_lang_message": "Please select your preferred language:",
+    "change_lang_restart": "This will change the text direction and layout. Please restart the app to apply the changes completely.",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  }
+}

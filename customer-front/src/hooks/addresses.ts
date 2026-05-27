@@ -3,6 +3,8 @@ import http from '../api/http';
 import { ENDPOINTS } from '../api/endpoints';
 import { Address } from '../types';
 
+type UpdateAddressPayload = Pick<Address, 'addressLine' | 'notes' | 'lat' | 'lng'>;
+
 export const useAddresses = () => {
     return useQuery({
         queryKey: ['addresses'],
@@ -29,8 +31,8 @@ export const useCreateAddress = () => {
 export const useUpdateAddress = () => {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async ({ id, ...data }: Address) => {
-            await http.put(ENDPOINTS.CUSTOMER.ADDRESS_DETAILS(id), data);
+        mutationFn: async ({ id, address }: { id: number; address: UpdateAddressPayload }) => {
+            await http.put(ENDPOINTS.CUSTOMER.ADDRESS_DETAILS(id), address);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['addresses'] });

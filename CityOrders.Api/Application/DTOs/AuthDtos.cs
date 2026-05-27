@@ -16,6 +16,12 @@ namespace CityOrders.Api.Application.DTOs
         public string Password { get; set; } = string.Empty;
         
         public string AddressLine { get; set; } = string.Empty; // Initial address for customer
+
+        [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90")]
+        public decimal? Lat { get; set; }
+
+        [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180")]
+        public decimal? Lng { get; set; }
     }
 
     public class LoginDto

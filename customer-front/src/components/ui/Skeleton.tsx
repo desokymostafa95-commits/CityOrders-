@@ -81,7 +81,7 @@ export const EmptyState: React.FC<{
 
 const styles = StyleSheet.create({
     skeleton: {
-        backgroundColor: '#E1E9EE',
+        backgroundColor: '#E2E8F0',
     },
     emptyContainer: {
         flex: 1,
@@ -98,12 +98,13 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     emptyTitle: {
-        fontWeight: '700',
+        color: '#0F172A',
+        fontWeight: '900',
         marginBottom: 8,
         textAlign: 'center',
     },
     emptyMessage: {
-        color: '#757575',
+        color: '#64748B',
         textAlign: 'center',
     },
     emptyAction: {

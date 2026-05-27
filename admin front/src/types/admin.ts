@@ -66,3 +66,84 @@ export interface HealthStatus {
     checkedAt: string;
     message?: string;
 }
+
+export interface DashboardRecentOrder {
+    id: number;
+    orderNumber: string;
+    status: string;
+    total: number;
+    brandName: string;
+    createdAt: string;
+}
+
+export interface DashboardSummary {
+    totalOrders: number;
+    activeOrders: number;
+    lateActiveOrders: number;
+    deliveredRevenue: number;
+    todaysRevenue: number;
+    customers: number;
+    merchants: number;
+    onlineMerchants: number;
+    temporarilyClosedMerchants: number;
+    pendingApprovals: number;
+    pendingPayments: number;
+    newCustomers: number;
+    unreadAdminChats: number;
+    openChatThreads: number;
+    recentOrders: DashboardRecentOrder[];
+    needsAttentionOrders: DashboardRecentOrder[];
+}
+
+export interface AdminMerchantAnalytics {
+    brandId: number;
+    brandName: string;
+    storeViews: number;
+    productViews: number;
+    orders: number;
+    revenue: number;
+    conversionRate: number;
+}
+
+export interface AdminSearchTermAnalytics {
+    term: string;
+    count: number;
+    hasMatchingProduct: boolean;
+    lastSearchedAt: string;
+}
+
+export interface AdminSectorAnalytics {
+    marketSectorId: number;
+    marketSectorName: string;
+    marketSectorSlug: string;
+    storeViews: number;
+    productViews: number;
+    orders: number;
+    revenue: number;
+    conversionRate: number;
+}
+
+export interface AdminLiveAnalyticsEvent {
+    type: string;
+    label: string;
+    detail?: string;
+    at: string;
+}
+
+export interface AdminAnalyticsOverview {
+    from: string;
+    to: string;
+    storeViews: number;
+    productViews: number;
+    addToCartEvents: number;
+    checkoutStartedEvents: number;
+    searches: number;
+    orders: number;
+    revenue: number;
+    abandonedCarts: number;
+    platformConversionRate: number;
+    sectorBreakdown: AdminSectorAnalytics[];
+    topMerchants: AdminMerchantAnalytics[];
+    searchTerms: AdminSearchTermAnalytics[];
+    liveFeed: AdminLiveAnalyticsEvent[];
+}

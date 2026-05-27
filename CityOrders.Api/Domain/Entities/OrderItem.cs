@@ -12,7 +12,7 @@ namespace CityOrders.Api.Domain.Entities
 
         public string ProductNameSnapshot { get; set; } = string.Empty;
         public decimal UnitPriceSnapshot { get; set; }
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal LineTotal { get; set; }
     }
 }

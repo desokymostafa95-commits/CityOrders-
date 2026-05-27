@@ -9,6 +9,8 @@ namespace CityOrders.Api.Domain.Entities
         
         public int MerchantUserId { get; set; }
         public MerchantProfile MerchantProfile { get; set; } = null!;
+        public int MarketSectorId { get; set; } = 1;
+        public MarketSector MarketSector { get; set; } = null!;
         // Assuming MerchantProfile is the navigation, but actually the FK is to Users.Id in the spec. 
         // However, MerchantProfile has PK=FK to userId. So linking to MerchantProfile or User is similar. 
         // Spec says: MerchantUserId FK -> Users.Id (UNIQUE constraint to enforce 1:1)

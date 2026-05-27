@@ -4,6 +4,8 @@ using CityOrders.Api.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace CityOrders.Api.API.Controllers
 {
@@ -37,6 +39,45 @@ namespace CityOrders.Api.API.Controllers
                 .ToListAsync();
 
             return Ok(admins);
+        }
+
+        [HttpGet("me/permissions")]
+        public async Task<ActionResult> GetMyPermissions()
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userIdString) || !int.TryParse(userIdString, out var userId))
+                return Unauthorized();
+
+            var user = await _context.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null) return NotFound();
+
+            var roles = user.UserRoles.Select(ur => new
+            {
+                ur.Role.Id,
+                ur.Role.Name,
+                ur.Role.IsCustom
+            }).ToList();
+
+            var isSystemAdmin = user.UserRoles.Any(ur => ur.Role.Name == "Admin");
+            var permissions = isSystemAdmin
+                ? new List<string> { "page:*" }
+                : user.UserRoles
+                    .Where(ur => ur.Role.IsCustom)
+                    .SelectMany(ur => ParsePermissions(ur.Role.Permissions))
+                    .Distinct()
+                    .OrderBy(p => p)
+                    .ToList();
+
+            return Ok(new
+            {
+                IsSystemAdmin = isSystemAdmin,
+                Permissions = permissions,
+                Roles = roles
+            });
         }
 
         [HttpPost]
@@ -96,6 +137,19 @@ namespace CityOrders.Api.API.Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
+
+        private static List<string> ParsePermissions(string? permissionsJson)
+        {
+            if (string.IsNullOrWhiteSpace(permissionsJson)) return new List<string>();
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(permissionsJson) ?? new List<string>();
+            }
+            catch
+            {
+                return new List<string>();
+            }
+        }
     }
 
     public class CreateAdminDto
@@ -110,4 +164,5 @@ namespace CityOrders.Api.API.Controllers
     {
         public int RoleId { get; set; }
     }
+
 }

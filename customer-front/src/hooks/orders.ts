@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import http from '../api/http';
 import { ENDPOINTS } from '../api/endpoints';
-import { Order, OrderDetail } from '../types';
+import { BrandReview, Order, OrderDetail } from '../types';
 
 export const useOrders = () => {
     return useQuery({
@@ -32,6 +32,7 @@ export const useCreateOrder = () => {
             deliveryAddressId: number;
             items: { productId: number; quantity: number }[];
             notes?: string;
+            promoCode?: string;
         }) => {
             const { data } = await http.post(ENDPOINTS.ORDERS.BASE, orderData);
             return data;
@@ -52,6 +53,22 @@ export const useCancelOrder = () => {
         onSuccess: (_, orderId) => {
             queryClient.invalidateQueries({ queryKey: ['orders'] });
             queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+        },
+    });
+};
+
+export const useSubmitOrderReview = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ orderId, rating, comment }: { orderId: number; rating: number; comment?: string }) => {
+            const { data } = await http.post<BrandReview>(ENDPOINTS.ORDERS.REVIEW(orderId), { rating, comment });
+            return data;
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+            queryClient.invalidateQueries({ queryKey: ['order', variables.orderId] });
+            queryClient.invalidateQueries({ queryKey: ['brands'] });
+            queryClient.invalidateQueries({ queryKey: ['brand'] });
         },
     });
 };

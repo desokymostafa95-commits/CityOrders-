@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Alert, Platform, Linking } from 'react-native';
-import { Text, Card, Button, ActivityIndicator, useTheme as usePaperTheme, IconButton, List, Divider } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, Alert, Linking } from 'react-native';
+import { Text, Card, Button, ActivityIndicator, useTheme as usePaperTheme, IconButton, List } from 'react-native-paper';
 import * as Location from 'expo-location';
 import { useBrandLocation, useUpdateBrandLocation } from '@/src/hooks/useMerchantData';
 import { t } from '@/src/i18n';
-import { useTheme } from '@/src/theme/ThemeContext';
 import { MapPin, Navigation, Save, RefreshCw } from 'lucide-react-native';
+import { MapLocationPicker } from '@/src/components/MapLocationPicker';
 
 export default function StoreLocationScreen() {
-    const { isDark } = useTheme();
     const theme = usePaperTheme();
     const { data: savedLocation, isLoading: isFetching, refetch } = useBrandLocation();
     const updateLocation = useUpdateBrandLocation();
@@ -57,7 +56,7 @@ export default function StoreLocationScreen() {
 
     const handleOpenMap = () => {
         if (!savedLocation) return;
-        const url = `https://www.google.com/maps/search/?api=1&query=${savedLocation.lat},${savedLocation.lng}`;
+        const url = `https://www.openstreetmap.org/?mlat=${savedLocation.lat}&mlon=${savedLocation.lng}#map=17/${savedLocation.lat}/${savedLocation.lng}`;
         Linking.openURL(url);
     };
 
@@ -140,6 +139,12 @@ export default function StoreLocationScreen() {
                                 </Text>
                             </View>
                         )}
+
+                        <MapLocationPicker
+                            latitude={draftLocation?.lat ?? savedLocation?.lat}
+                            longitude={draftLocation?.lng ?? savedLocation?.lng}
+                            onChange={setDraftLocation}
+                        />
 
                         <Button
                             mode="outlined"

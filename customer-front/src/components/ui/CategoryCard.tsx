@@ -18,11 +18,18 @@ const ICON_MAP: Record<string, string> = {
     'dessert': 'cupcake',
     'grocery': 'cart',
     'pharmacy': 'medical-bag',
+    'fashion': 'tshirt-crew-outline',
+    'clothes': 'tshirt-crew-outline',
+    'mobile': 'cellphone',
+    'mobiles': 'cellphone',
+    'computer': 'laptop',
+    'computers': 'laptop',
+    'appliances': 'washing-machine',
 };
 
 export const CategoryCard: React.FC<CategoryCardProps> = ({ category, onPress }) => {
     const theme = useTheme();
-    const scale = new Animated.Value(1);
+    const scale = React.useRef(new Animated.Value(1)).current;
 
     const onPressIn = () => {
         Animated.spring(scale, {
@@ -40,7 +47,8 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({ category, onPress })
         }).start();
     };
 
-    const iconName = (category.iconKey && ICON_MAP[category.iconKey.toLowerCase()]) || 'food';
+    const sectorIcon = category.marketSectorSlug && ICON_MAP[category.marketSectorSlug.toLowerCase()];
+    const iconName = (category.iconKey && ICON_MAP[category.iconKey.toLowerCase()]) || sectorIcon || 'shape-outline';
     const imageUrl = resolveImageUrl(category.imageUrl);
 
     return (
@@ -50,6 +58,8 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({ category, onPress })
                 onPress={onPress}
                 onPressIn={onPressIn}
                 onPressOut={onPressOut}
+                accessibilityRole="button"
+                accessibilityLabel={`${category.name} category`}
                 style={styles.touchable}
             >
                 <Surface style={styles.surface} elevation={0}>
@@ -67,6 +77,11 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({ category, onPress })
                     <Text variant="labelLarge" style={styles.name} numberOfLines={1}>
                         {category.name}
                     </Text>
+                    {!!category.marketSectorName && (
+                        <Text variant="labelSmall" style={styles.sectorName} numberOfLines={1}>
+                            {category.marketSectorName}
+                        </Text>
+                    )}
                 </Surface>
             </TouchableOpacity>
         </Animated.View>
@@ -82,19 +97,19 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     surface: {
-        borderRadius: 16,
-        padding: 12,
+        borderRadius: 18,
+        padding: 13,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#F0F0F0',
-        height: 125,
+        borderColor: '#E2E8F0',
+        height: 132,
     },
     iconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: 54,
+        height: 54,
+        borderRadius: 17,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 12,
@@ -106,6 +121,11 @@ const styles = StyleSheet.create({
     },
     name: {
         textAlign: 'center',
-        fontWeight: '600',
+        fontWeight: '900',
+        color: '#0F172A',
+    },
+    sectorName: {
+        color: '#64748B',
+        marginTop: 2,
     },
 });

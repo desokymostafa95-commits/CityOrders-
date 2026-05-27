@@ -9,33 +9,43 @@ namespace CityOrders.Api.Infrastructure.Data
         {
         }
 
-        public DbSet<User> Users { get; set; }
-        public DbSet<Role> Roles { get; set; }
-        public DbSet<UserRole> UserRoles { get; set; }
-        public DbSet<CustomerProfile> CustomerProfiles { get; set; }
-        public DbSet<MerchantProfile> MerchantProfiles { get; set; }
-        public DbSet<DeliveryProfile> DeliveryProfiles { get; set; }
-        public DbSet<CustomerAddress> CustomerAddresses { get; set; }
-        public DbSet<Brand> Brands { get; set; }
-        public DbSet<Product> Products { get; set; }
-        public DbSet<ProductPhoto> ProductPhotos { get; set; }
-        public DbSet<BrandCategory> BrandCategories { get; set; }
-        public DbSet<Order> Orders { get; set; }
-        public DbSet<OrderItem> OrderItems { get; set; }
-        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
-        public DbSet<MerchantSubscription> MerchantSubscriptions { get; set; }
-        public DbSet<SubscriptionPaymentRequest> SubscriptionPaymentRequests { get; set; }
-        public DbSet<MerchantShift> MerchantShifts { get; set; }
-        public DbSet<MerchantShiftOrder> MerchantShiftOrders { get; set; }
-        public DbSet<MerchantShiftLine> MerchantShiftLines { get; set; }
-        public DbSet<AppSettings> AppSettings { get; set; }
-        public DbSet<PaymentMethod> PaymentMethods { get; set; }
-        public DbSet<Category> Categories { get; set; }
-        public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<User> Users { get; set; } = null!;
+        public DbSet<Role> Roles { get; set; } = null!;
+        public DbSet<UserRole> UserRoles { get; set; } = null!;
+        public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
+        public DbSet<MerchantProfile> MerchantProfiles { get; set; } = null!;
+        public DbSet<DeliveryProfile> DeliveryProfiles { get; set; } = null!;
+        public DbSet<DeliveryOffice> DeliveryOffices { get; set; } = null!;
+        public DbSet<DeliveryAssignment> DeliveryAssignments { get; set; } = null!;
+        public DbSet<DeliveryPlatformSettings> DeliveryPlatformSettings { get; set; } = null!;
+        public DbSet<CustomerAddress> CustomerAddresses { get; set; } = null!;
+        public DbSet<Brand> Brands { get; set; } = null!;
+        public DbSet<Product> Products { get; set; } = null!;
+        public DbSet<ProductPhoto> ProductPhotos { get; set; } = null!;
+        public DbSet<BrandCategory> BrandCategories { get; set; } = null!;
+        public DbSet<Order> Orders { get; set; } = null!;
+        public DbSet<OrderItem> OrderItems { get; set; } = null!;
+        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; } = null!;
+        public DbSet<MerchantSubscription> MerchantSubscriptions { get; set; } = null!;
+        public DbSet<SubscriptionPaymentRequest> SubscriptionPaymentRequests { get; set; } = null!;
+        public DbSet<MerchantShift> MerchantShifts { get; set; } = null!;
+        public DbSet<MerchantShiftOrder> MerchantShiftOrders { get; set; } = null!;
+        public DbSet<MerchantShiftLine> MerchantShiftLines { get; set; } = null!;
+        public DbSet<AppSettings> AppSettings { get; set; } = null!;
+        public DbSet<PaymentMethod> PaymentMethods { get; set; } = null!;
+        public DbSet<MarketSector> MarketSectors { get; set; } = null!;
+        public DbSet<Category> Categories { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<BrandOffer> BrandOffers { get; set; } = null!;
         public DbSet<PromoCode> PromoCodes { get; set; } = null!;
         public DbSet<PromoCodeUsage> PromoCodeUsages { get; set; } = null!;
         public DbSet<GlobalAnnouncement> Announcements { get; set; } = null!;
+        public DbSet<UserNotification> UserNotifications { get; set; } = null!;
+        public DbSet<BrandReview> BrandReviews { get; set; } = null!;
+        public DbSet<ChatThread> ChatThreads { get; set; } = null!;
+        public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
+        public DbSet<AnalyticsEvent> AnalyticsEvents { get; set; } = null!;
+        public DbSet<MerchantDailyAnalytics> MerchantDailyAnalytics { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -118,8 +128,82 @@ namespace CityOrders.Api.Infrastructure.Data
                 .HasForeignKey<DeliveryProfile>(dp => dp.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<DeliveryProfile>()
+                .HasIndex(dp => new { dp.AgentType, dp.IsActive, dp.IsAvailable });
+            modelBuilder.Entity<DeliveryProfile>()
+                .HasIndex(dp => dp.DeliveryOfficeId);
+            modelBuilder.Entity<DeliveryProfile>()
+                .HasIndex(dp => dp.MerchantUserId);
+            modelBuilder.Entity<DeliveryProfile>()
                 .Property(dp => dp.IsActive)
                 .HasDefaultValue(true);
+            modelBuilder.Entity<DeliveryProfile>()
+                .Property(dp => dp.IsAvailable)
+                .HasDefaultValue(false);
+            modelBuilder.Entity<DeliveryProfile>()
+                .Property(dp => dp.CommissionPercent)
+                .HasPrecision(5, 2);
+            modelBuilder.Entity<DeliveryProfile>()
+                .Property(dp => dp.LastLat)
+                .HasPrecision(9, 6);
+            modelBuilder.Entity<DeliveryProfile>()
+                .Property(dp => dp.LastLng)
+                .HasPrecision(9, 6);
+            modelBuilder.Entity<DeliveryProfile>()
+                .Property(dp => dp.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<DeliveryProfile>()
+                .HasOne(dp => dp.MerchantUser)
+                .WithMany()
+                .HasForeignKey(dp => dp.MerchantUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<DeliveryProfile>()
+                .HasOne(dp => dp.DeliveryOffice)
+                .WithMany(o => o.DeliveryAgents)
+                .HasForeignKey(dp => dp.DeliveryOfficeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // DeliveryOffice
+            modelBuilder.Entity<DeliveryOffice>()
+                .HasIndex(o => o.Name);
+            modelBuilder.Entity<DeliveryOffice>()
+                .HasIndex(o => o.ManagerUserId)
+                .IsUnique();
+            modelBuilder.Entity<DeliveryOffice>()
+                .Property(o => o.DefaultCommissionPercent)
+                .HasPrecision(5, 2);
+            modelBuilder.Entity<DeliveryOffice>()
+                .Property(o => o.AgentCollectionCycleDays)
+                .HasDefaultValue(7);
+            modelBuilder.Entity<DeliveryOffice>()
+                .Property(o => o.AgentCollectionMethodsJson)
+                .HasMaxLength(300)
+                .HasDefaultValue("[\"Cash\",\"Instapay\",\"COD\"]");
+            modelBuilder.Entity<DeliveryOffice>()
+                .Property(o => o.IsActive)
+                .HasDefaultValue(true);
+            modelBuilder.Entity<DeliveryOffice>()
+                .Property(o => o.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<DeliveryOffice>()
+                .HasOne(o => o.ManagerUser)
+                .WithOne(u => u.ManagedDeliveryOffice)
+                .HasForeignKey<DeliveryOffice>(o => o.ManagerUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // DeliveryPlatformSettings
+            modelBuilder.Entity<DeliveryPlatformSettings>()
+                .Property(s => s.IndependentPlatformCommissionPercent)
+                .HasPrecision(5, 2);
+            modelBuilder.Entity<DeliveryPlatformSettings>()
+                .Property(s => s.IndependentCollectionCycleDays)
+                .HasDefaultValue(7);
+            modelBuilder.Entity<DeliveryPlatformSettings>()
+                .Property(s => s.IndependentCollectionMethodsJson)
+                .HasMaxLength(300)
+                .HasDefaultValue("[\"Cash\",\"Instapay\",\"COD\"]");
+            modelBuilder.Entity<DeliveryPlatformSettings>()
+                .Property(s => s.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
 
             // Brand
             modelBuilder.Entity<Brand>()
@@ -153,6 +237,13 @@ namespace CityOrders.Api.Infrastructure.Data
             modelBuilder.Entity<Brand>()
                 .Property(b => b.CreatedAt)
                 .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<Brand>()
+                .HasIndex(b => b.MarketSectorId);
+            modelBuilder.Entity<Brand>()
+                .HasOne(b => b.MarketSector)
+                .WithMany(s => s.Brands)
+                .HasForeignKey(b => b.MarketSectorId)
+                .OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<Brand>()
                 .Property(b => b.FixedDeliveryFee)
                 .HasPrecision(18, 2);
@@ -239,6 +330,8 @@ namespace CityOrders.Api.Infrastructure.Data
                 .HasIndex(o => o.CustomerUserId);
             modelBuilder.Entity<Order>()
                 .HasIndex(o => o.BrandId);
+            modelBuilder.Entity<Order>()
+                .HasIndex(o => new { o.BrandId, o.Status, o.DeliveredAt });
             
             modelBuilder.Entity<Order>()
                 .Property(o => o.Subtotal)
@@ -291,9 +384,73 @@ namespace CityOrders.Api.Infrastructure.Data
                 .HasForeignKey(o => o.DeliveryAddressId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // DeliveryAssignment
+            modelBuilder.Entity<DeliveryAssignment>()
+                .HasIndex(a => a.OrderId)
+                .IsUnique();
+            modelBuilder.Entity<DeliveryAssignment>()
+                .HasIndex(a => new { a.Status, a.Source, a.CreatedAt });
+            modelBuilder.Entity<DeliveryAssignment>()
+                .HasIndex(a => a.AgentUserId);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .HasIndex(a => a.DeliveryOfficeId);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.DeliveryFeeSnapshot)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.PlatformCommissionPercent)
+                .HasPrecision(5, 2);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.PlatformCommissionAmount)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.OfficeCommissionPercent)
+                .HasPrecision(5, 2);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.OfficeCommissionAmount)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.AgentEarningAmount)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.CollectionAmount)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.CollectionMethod)
+                .HasMaxLength(50);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.CollectionMethodsSnapshot)
+                .HasMaxLength(300);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .Property(a => a.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<DeliveryAssignment>()
+                .HasOne(a => a.Order)
+                .WithOne(o => o.DeliveryAssignment)
+                .HasForeignKey<DeliveryAssignment>(a => a.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .HasOne(a => a.AgentUser)
+                .WithMany()
+                .HasForeignKey(a => a.AgentUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .HasOne(a => a.DeliveryOffice)
+                .WithMany()
+                .HasForeignKey(a => a.DeliveryOfficeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<DeliveryAssignment>()
+                .HasOne(a => a.CollectedByUser)
+                .WithMany()
+                .HasForeignKey(a => a.CollectedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // OrderItem
             modelBuilder.Entity<OrderItem>()
                 .Property(oi => oi.UnitPriceSnapshot)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<OrderItem>()
+                .Property(oi => oi.Quantity)
                 .HasPrecision(18, 2);
             modelBuilder.Entity<OrderItem>()
                 .Property(oi => oi.LineTotal)
@@ -415,6 +572,9 @@ namespace CityOrders.Api.Infrastructure.Data
                 .Property(msl => msl.UnitPriceSnapshot)
                 .HasPrecision(18, 2);
             modelBuilder.Entity<MerchantShiftLine>()
+                .Property(msl => msl.Quantity)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<MerchantShiftLine>()
                 .Property(msl => msl.LineTotal)
                 .HasPrecision(18, 2);
 
@@ -435,12 +595,29 @@ namespace CityOrders.Api.Infrastructure.Data
                 .HasDefaultValueSql("SYSUTCDATETIME()");
 
             // Category
+            modelBuilder.Entity<MarketSector>()
+                .HasIndex(s => s.Slug)
+                .IsUnique();
+            modelBuilder.Entity<MarketSector>()
+                .Property(s => s.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<MarketSector>()
+                .Property(s => s.IsActive)
+                .HasDefaultValue(true);
+
             modelBuilder.Entity<Category>()
                 .HasIndex(c => c.Slug)
                 .IsUnique();
             modelBuilder.Entity<Category>()
+                .HasIndex(c => new { c.MarketSectorId, c.SortOrder });
+            modelBuilder.Entity<Category>()
                 .Property(c => c.CreatedAt)
                 .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<Category>()
+                .HasOne(c => c.MarketSector)
+                .WithMany(s => s.Categories)
+                .HasForeignKey(c => c.MarketSectorId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Brand>()
                 .HasMany(b => b.MasterCategories)
@@ -536,6 +713,189 @@ namespace CityOrders.Api.Infrastructure.Data
             modelBuilder.Entity<Order>()
                 .Property(o => o.DiscountAmount)
                 .HasPrecision(18, 2);
+
+            // UserNotification
+            modelBuilder.Entity<UserNotification>()
+                .HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
+            modelBuilder.Entity<UserNotification>()
+                .Property(n => n.Title)
+                .HasMaxLength(120);
+            modelBuilder.Entity<UserNotification>()
+                .Property(n => n.Message)
+                .HasMaxLength(500);
+            modelBuilder.Entity<UserNotification>()
+                .Property(n => n.Type)
+                .HasMaxLength(50);
+            modelBuilder.Entity<UserNotification>()
+                .Property(n => n.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<UserNotification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<UserNotification>()
+                .HasOne(n => n.RelatedOrder)
+                .WithMany()
+                .HasForeignKey(n => n.RelatedOrderId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // BrandReview
+            modelBuilder.Entity<BrandReview>()
+                .HasIndex(r => r.OrderId)
+                .IsUnique();
+            modelBuilder.Entity<BrandReview>()
+                .HasIndex(r => new { r.BrandId, r.CreatedAt });
+            modelBuilder.Entity<BrandReview>()
+                .Property(r => r.Comment)
+                .HasMaxLength(500);
+            modelBuilder.Entity<BrandReview>()
+                .Property(r => r.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<BrandReview>()
+                .HasOne(r => r.Order)
+                .WithMany()
+                .HasForeignKey(r => r.OrderId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<BrandReview>()
+                .HasOne(r => r.Brand)
+                .WithMany()
+                .HasForeignKey(r => r.BrandId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<BrandReview>()
+                .HasOne(r => r.Customer)
+                .WithMany()
+                .HasForeignKey(r => r.CustomerUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ChatThread
+            modelBuilder.Entity<ChatThread>()
+                .HasIndex(t => new { t.Type, t.OrderId })
+                .IsUnique()
+                .HasFilter("[OrderId] IS NOT NULL");
+            modelBuilder.Entity<ChatThread>()
+                .HasIndex(t => new { t.Type, t.MerchantUserId, t.AdminUserId })
+                .IsUnique()
+                .HasFilter("[AdminUserId] IS NOT NULL");
+            modelBuilder.Entity<ChatThread>()
+                .HasIndex(t => new { t.MerchantUserId, t.UpdatedAt });
+            modelBuilder.Entity<ChatThread>()
+                .HasIndex(t => new { t.CustomerUserId, t.UpdatedAt });
+            modelBuilder.Entity<ChatThread>()
+                .Property(t => t.Subject)
+                .HasMaxLength(200);
+            modelBuilder.Entity<ChatThread>()
+                .Property(t => t.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<ChatThread>()
+                .Property(t => t.UpdatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<ChatThread>()
+                .HasOne(t => t.Customer)
+                .WithMany()
+                .HasForeignKey(t => t.CustomerUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatThread>()
+                .HasOne(t => t.Merchant)
+                .WithMany()
+                .HasForeignKey(t => t.MerchantUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatThread>()
+                .HasOne(t => t.Admin)
+                .WithMany()
+                .HasForeignKey(t => t.AdminUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatThread>()
+                .HasOne(t => t.Brand)
+                .WithMany()
+                .HasForeignKey(t => t.BrandId)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<ChatThread>()
+                .HasOne(t => t.Order)
+                .WithMany()
+                .HasForeignKey(t => t.OrderId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ChatMessage
+            modelBuilder.Entity<ChatMessage>()
+                .HasIndex(m => new { m.ThreadId, m.CreatedAt });
+            modelBuilder.Entity<ChatMessage>()
+                .Property(m => m.Body)
+                .HasMaxLength(1000);
+            modelBuilder.Entity<ChatMessage>()
+                .Property(m => m.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Thread)
+                .WithMany(t => t.Messages)
+                .HasForeignKey(m => m.ThreadId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // AnalyticsEvent
+            modelBuilder.Entity<AnalyticsEvent>()
+                .HasIndex(e => new { e.BrandId, e.EventType, e.CreatedAt });
+            modelBuilder.Entity<AnalyticsEvent>()
+                .HasIndex(e => new { e.ProductId, e.EventType, e.CreatedAt });
+            modelBuilder.Entity<AnalyticsEvent>()
+                .HasIndex(e => e.CustomerUserId);
+            modelBuilder.Entity<AnalyticsEvent>()
+                .HasIndex(e => e.VisitorId);
+            modelBuilder.Entity<AnalyticsEvent>()
+                .HasIndex(e => new { e.BrandId, e.SearchTerm, e.CreatedAt });
+            modelBuilder.Entity<AnalyticsEvent>()
+                .Property(e => e.VisitorId)
+                .HasMaxLength(100);
+            modelBuilder.Entity<AnalyticsEvent>()
+                .Property(e => e.SessionId)
+                .HasMaxLength(100);
+            modelBuilder.Entity<AnalyticsEvent>()
+                .Property(e => e.SearchTerm)
+                .HasMaxLength(120);
+            modelBuilder.Entity<AnalyticsEvent>()
+                .Property(e => e.MetadataJson)
+                .HasMaxLength(1000);
+            modelBuilder.Entity<AnalyticsEvent>()
+                .Property(e => e.CreatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<AnalyticsEvent>()
+                .HasOne(e => e.Brand)
+                .WithMany()
+                .HasForeignKey(e => e.BrandId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<AnalyticsEvent>()
+                .HasOne(e => e.Product)
+                .WithMany()
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<AnalyticsEvent>()
+                .HasOne(e => e.Customer)
+                .WithMany()
+                .HasForeignKey(e => e.CustomerUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // MerchantDailyAnalytics
+            modelBuilder.Entity<MerchantDailyAnalytics>()
+                .HasIndex(a => new { a.BrandId, a.Date })
+                .IsUnique();
+            modelBuilder.Entity<MerchantDailyAnalytics>()
+                .Property(a => a.Revenue)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<MerchantDailyAnalytics>()
+                .Property(a => a.PromoDiscount)
+                .HasPrecision(18, 2);
+            modelBuilder.Entity<MerchantDailyAnalytics>()
+                .Property(a => a.UpdatedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+            modelBuilder.Entity<MerchantDailyAnalytics>()
+                .HasOne(a => a.Brand)
+                .WithMany()
+                .HasForeignKey(a => a.BrandId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

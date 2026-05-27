@@ -8,6 +8,9 @@ namespace CityOrders.Api.Domain.Entities
         [Key]
         public int Id { get; set; }
 
+        public int MarketSectorId { get; set; } = 1;
+        public MarketSector MarketSector { get; set; } = null!;
+
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;

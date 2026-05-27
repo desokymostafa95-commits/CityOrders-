@@ -23,7 +23,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
                 {title}
             </Text>
             {actionLabel && (
-                <TouchableOpacity onPress={onActionPress}>
+                <TouchableOpacity onPress={onActionPress} accessibilityRole="button">
                     <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
                         {actionLabel}
                     </Text>
@@ -42,6 +42,7 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     title: {
-        fontWeight: '700',
+        color: '#0F172A',
+        fontWeight: '900',
     },
 });

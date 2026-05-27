@@ -154,6 +154,10 @@ namespace CityOrders.Api.API.Controllers
 
             if (address == null) return NotFound();
 
+            var isUsedInOrders = await _context.Orders.AnyAsync(o => o.DeliveryAddressId == id);
+            if (isUsedInOrders)
+                return BadRequest("This address is linked to existing orders and cannot be deleted.");
+
             _context.CustomerAddresses.Remove(address);
             await _context.SaveChangesAsync();
             return NoContent();

@@ -1,4 +1,5 @@
 using CityOrders.Api.Application.DTOs;
+using CityOrders.Api.Application.Services;
 using CityOrders.Api.Domain.Entities;
 using CityOrders.Api.Infrastructure.Data;
 using CityOrders.Api.API.Authorization;
@@ -21,13 +22,17 @@ namespace CityOrders.Api.API.Controllers
         private readonly IConfiguration _configuration;
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<MerchantController> _logger;
+        private readonly NotificationService _notificationService;
+        private readonly DeliveryDispatchService _deliveryDispatchService;
 
-        public MerchantController(AppDbContext context, IConfiguration configuration, IWebHostEnvironment env, ILogger<MerchantController> logger)
+        public MerchantController(AppDbContext context, IConfiguration configuration, IWebHostEnvironment env, ILogger<MerchantController> logger, NotificationService notificationService, DeliveryDispatchService deliveryDispatchService)
         {
             _context = context;
             _configuration = configuration;
             _env = env;
             _logger = logger;
+            _notificationService = notificationService;
+            _deliveryDispatchService = deliveryDispatchService;
         }
 
         [HttpGet("test")]
@@ -50,6 +55,29 @@ namespace CityOrders.Api.API.Controllers
         {
             var mp = await _context.MerchantProfiles.FirstOrDefaultAsync(m => m.UserId == userId);
             return mp != null && mp.IsActive;
+        }
+
+        private async Task<(MarketSector? sector, List<Category> categories, string? error)> ResolveSectorCategories(
+            int marketSectorId,
+            IReadOnlyCollection<int>? categoryIds)
+        {
+            var sector = await _context.MarketSectors.FirstOrDefaultAsync(s => s.Id == marketSectorId && s.IsActive);
+            if (sector == null) return (null, new List<Category>(), "Selected market sector does not exist or is inactive.");
+
+            var requestedIds = categoryIds?.Distinct().ToList() ?? new List<int>();
+            if (!requestedIds.Any()) return (sector, new List<Category>(), null);
+
+            var categories = await _context.Categories
+                .Where(c => requestedIds.Contains(c.Id) && c.IsActive)
+                .ToListAsync();
+
+            if (categories.Count != requestedIds.Count)
+                return (sector, categories, "One or more selected categories do not exist or are inactive.");
+
+            if (categories.Any(c => c.MarketSectorId != marketSectorId))
+                return (sector, categories, "Selected categories must belong to the selected market sector.");
+
+            return (sector, categories, null);
         }
 
         [HttpPost("apply-anon")]
@@ -116,8 +144,14 @@ namespace CityOrders.Api.API.Controllers
                 Name = dto.BrandName,
                 Address = dto.BrandAddress,
                 Phone1 = dto.BrandPhone,
+                MarketSectorId = dto.MarketSectorId <= 0 ? 1 : dto.MarketSectorId,
                 IsActive = true
             };
+
+            var (legacySector, legacyCategories, legacyError) = await ResolveSectorCategories(brand.MarketSectorId, dto.MasterCategoryIds);
+            if (legacyError != null) return BadRequest(legacyError);
+            foreach (var cat in legacyCategories) brand.MasterCategories.Add(cat);
+
             _context.Brands.Add(brand);
             await _context.SaveChangesAsync();
 
@@ -163,25 +197,42 @@ namespace CityOrders.Api.API.Controllers
             var existingBrand = await _context.Brands.FirstOrDefaultAsync(b => b.MerchantUserId == userId);
             if (existingBrand != null) return BadRequest("Merchant already has a brand.");
 
+            if (dto.BaseDeliveryFee < 0) return BadRequest("Base delivery fee must be greater than or equal to 0.");
+            if (dto.FeePerKilometer < 0) return BadRequest("Delivery fee per kilometer must be greater than or equal to 0.");
+            if (dto.MinDeliveryFee.HasValue && dto.MinDeliveryFee.Value < 0) return BadRequest("Minimum delivery fee must be greater than or equal to 0.");
+            if (dto.MaxDeliveryFee.HasValue && dto.MaxDeliveryFee.Value < 0) return BadRequest("Maximum delivery fee must be greater than or equal to 0.");
+            if (dto.MaxDeliveryDistanceKm.HasValue && dto.MaxDeliveryDistanceKm.Value <= 0) return BadRequest("Maximum delivery distance must be greater than 0.");
+            if (dto.MinDeliveryFee.HasValue && dto.MaxDeliveryFee.HasValue && dto.MinDeliveryFee.Value > dto.MaxDeliveryFee.Value)
+                return BadRequest("Minimum delivery fee cannot be greater than maximum delivery fee.");
+
+            var selectedSectorId = dto.MarketSectorId <= 0 ? 1 : dto.MarketSectorId;
+            var (sector, selectedCategories, sectorError) = await ResolveSectorCategories(selectedSectorId, dto.MasterCategoryIds);
+            if (sectorError != null) return BadRequest(sectorError);
+
             var brand = new Brand
             {
                 MerchantUserId = userId,
                 Name = dto.BrandName,
                 Address = dto.BrandAddress,
                 Phone1 = dto.BrandPhone,
+                MarketSectorId = sector!.Id,
                 FixedDeliveryFee = dto.FixedDeliveryFee,
                 MinVariableDeliveryFee = dto.MinVariableDeliveryFee,
                 MaxVariableDeliveryFee = dto.MaxVariableDeliveryFee,
                 DeliveryFeeType = dto.DeliveryFeeType ?? "Fixed",
+                BaseDeliveryFee = dto.BaseDeliveryFee,
+                FeePerMeter = dto.FeePerKilometer / 1000m,
+                MinDeliveryFee = dto.MinDeliveryFee,
+                MaxDeliveryFee = dto.MaxDeliveryFee,
+                MaxDeliveryDistanceMeters = dto.MaxDeliveryDistanceKm.HasValue
+                    ? (int)Math.Round(dto.MaxDeliveryDistanceKm.Value * 1000m)
+                    : null,
                 IsActive = true
             };
 
             if (dto.MasterCategoryIds != null && dto.MasterCategoryIds.Any())
             {
-                var categories = await _context.Categories
-                    .Where(c => dto.MasterCategoryIds.Contains(c.Id))
-                    .ToListAsync();
-                foreach (var cat in categories) brand.MasterCategories.Add(cat);
+                foreach (var cat in selectedCategories) brand.MasterCategories.Add(cat);
             }
 
             _context.Brands.Add(brand);
@@ -232,6 +283,7 @@ namespace CityOrders.Api.API.Controllers
         {
             var userId = GetUserId();
             var brand = await _context.Brands
+                .Include(b => b.MarketSector)
                 .Include(b => b.MasterCategories)
                 .FirstOrDefaultAsync(b => b.MerchantUserId == userId);
             
@@ -244,15 +296,38 @@ namespace CityOrders.Api.API.Controllers
                 Address = brand.Address,
                 Phone1 = brand.Phone1,
                 IsActive = brand.IsActive,
+                MarketSectorId = brand.MarketSectorId,
+                MarketSector = brand.MarketSector == null ? null : new AdminMarketSectorDto
+                {
+                    Id = brand.MarketSector.Id,
+                    Name = brand.MarketSector.Name,
+                    Slug = brand.MarketSector.Slug,
+                    Description = brand.MarketSector.Description,
+                    IconKey = brand.MarketSector.IconKey,
+                    ImageUrl = brand.MarketSector.ImageUrl,
+                    SortOrder = brand.MarketSector.SortOrder,
+                    IsActive = brand.MarketSector.IsActive,
+                    CreatedAt = brand.MarketSector.CreatedAt
+                },
                 FixedDeliveryFee = brand.FixedDeliveryFee,
                 MinVariableDeliveryFee = brand.MinVariableDeliveryFee,
                 MaxVariableDeliveryFee = brand.MaxVariableDeliveryFee,
                 DeliveryFeeType = brand.DeliveryFeeType,
+                BaseDeliveryFee = brand.BaseDeliveryFee,
+                FeePerKilometer = brand.FeePerMeter * 1000m,
+                MinDeliveryFee = brand.MinDeliveryFee,
+                MaxDeliveryFee = brand.MaxDeliveryFee,
+                MaxDeliveryDistanceKm = brand.MaxDeliveryDistanceMeters.HasValue
+                    ? brand.MaxDeliveryDistanceMeters.Value / 1000m
+                    : null,
                 LogoUrl = brand.LogoUrl,
                 MasterCategoryIds = brand.MasterCategories.Select(c => c.Id).ToList(),
                 MasterCategories = brand.MasterCategories.Select(c => new AdminCategoryDto
                 {
                     Id = c.Id,
+                    MarketSectorId = c.MarketSectorId,
+                    MarketSectorName = brand.MarketSector?.Name,
+                    MarketSectorSlug = brand.MarketSector?.Slug,
                     Name = c.Name,
                     Slug = c.Slug,
                     Description = c.Description,
@@ -271,19 +346,32 @@ namespace CityOrders.Api.API.Controllers
             if (!await IsActiveMerchant(userId)) return StatusCode(403, "Merchant account is inactive.");
 
             var brand = await _context.Brands
+                .Include(b => b.MarketSector)
                 .Include(b => b.MasterCategories)
                 .Include(b => b.MerchantProfile)
                 .FirstOrDefaultAsync(b => b.MerchantUserId == userId);
             
             if (brand == null) return NotFound();
 
+            if (dto.BaseDeliveryFee < 0) return BadRequest("Base delivery fee must be greater than or equal to 0.");
+            if (dto.FeePerKilometer < 0) return BadRequest("Delivery fee per kilometer must be greater than or equal to 0.");
+            if (dto.MinDeliveryFee.HasValue && dto.MinDeliveryFee.Value < 0) return BadRequest("Minimum delivery fee must be greater than or equal to 0.");
+            if (dto.MaxDeliveryFee.HasValue && dto.MaxDeliveryFee.Value < 0) return BadRequest("Maximum delivery fee must be greater than or equal to 0.");
+            if (dto.MaxDeliveryDistanceKm.HasValue && dto.MaxDeliveryDistanceKm.Value <= 0) return BadRequest("Maximum delivery distance must be greater than 0.");
+            if (dto.MinDeliveryFee.HasValue && dto.MaxDeliveryFee.HasValue && dto.MinDeliveryFee.Value > dto.MaxDeliveryFee.Value)
+                return BadRequest("Minimum delivery fee cannot be greater than maximum delivery fee.");
+
+            var selectedSectorId = dto.MarketSectorId <= 0 ? brand.MarketSectorId : dto.MarketSectorId;
+            var (sector, selectedCategories, sectorError) = await ResolveSectorCategories(selectedSectorId, dto.MasterCategoryIds);
+            if (sectorError != null) return BadRequest(sectorError);
+
             // Check if categories changed
-            if (dto.MasterCategoryIds != null)
+            if (dto.MasterCategoryIds != null || selectedSectorId != brand.MarketSectorId)
             {
                 var currentIds = brand.MasterCategories.Select(c => c.Id).ToList();
-                var newIds = dto.MasterCategoryIds;
+                var newIds = dto.MasterCategoryIds ?? currentIds;
                 
-                bool changed = currentIds.Count != newIds.Count || currentIds.Except(newIds).Any() || newIds.Except(currentIds).Any();
+                bool changed = selectedSectorId != brand.MarketSectorId || currentIds.Count != newIds.Count || currentIds.Except(newIds).Any() || newIds.Except(currentIds).Any();
                 
                 if (changed)
                 {
@@ -293,7 +381,8 @@ namespace CityOrders.Api.API.Controllers
                     var addedNames = await _context.Categories.Where(c => added.Contains(c.Id)).Select(c => c.Name).ToListAsync();
                     var removedNames = await _context.Categories.Where(c => removed.Contains(c.Id)).Select(c => c.Name).ToListAsync();
                     
-                    string reason = "Category update: ";
+                    string reason = "Sector/category update: ";
+                    if (selectedSectorId != brand.MarketSectorId) reason += $"Sector changed to [{sector!.Name}] ";
                     if (addedNames.Any()) reason += $"Added [{string.Join(", ", addedNames)}] ";
                     if (removedNames.Any()) reason += $"Removed [{string.Join(", ", removedNames)}]";
 
@@ -306,11 +395,9 @@ namespace CityOrders.Api.API.Controllers
                         Console.WriteLine($"[Merchant Category Update] User {userId} changed categories. Reason: {reason}");
                     }
                     
+                    brand.MarketSectorId = sector!.Id;
                     brand.MasterCategories.Clear();
-                    var categories = await _context.Categories
-                        .Where(c => dto.MasterCategoryIds.Contains(c.Id))
-                        .ToListAsync();
-                    foreach (var cat in categories) brand.MasterCategories.Add(cat);
+                    foreach (var cat in selectedCategories) brand.MasterCategories.Add(cat);
                 }
             }
 
@@ -321,6 +408,13 @@ namespace CityOrders.Api.API.Controllers
             brand.MinVariableDeliveryFee = dto.MinVariableDeliveryFee;
             brand.MaxVariableDeliveryFee = dto.MaxVariableDeliveryFee;
             brand.DeliveryFeeType = dto.DeliveryFeeType ?? "Fixed";
+            brand.BaseDeliveryFee = dto.BaseDeliveryFee;
+            brand.FeePerMeter = dto.FeePerKilometer / 1000m;
+            brand.MinDeliveryFee = dto.MinDeliveryFee;
+            brand.MaxDeliveryFee = dto.MaxDeliveryFee;
+            brand.MaxDeliveryDistanceMeters = dto.MaxDeliveryDistanceKm.HasValue
+                ? (int)Math.Round(dto.MaxDeliveryDistanceKm.Value * 1000m)
+                : null;
             
             await _context.SaveChangesAsync();
             return Ok(new BrandDto
@@ -330,10 +424,30 @@ namespace CityOrders.Api.API.Controllers
                 Address = brand.Address,
                 Phone1 = brand.Phone1,
                 IsActive = brand.IsActive,
+                MarketSectorId = brand.MarketSectorId,
+                MarketSector = sector == null ? null : new AdminMarketSectorDto
+                {
+                    Id = sector.Id,
+                    Name = sector.Name,
+                    Slug = sector.Slug,
+                    Description = sector.Description,
+                    IconKey = sector.IconKey,
+                    ImageUrl = sector.ImageUrl,
+                    SortOrder = sector.SortOrder,
+                    IsActive = sector.IsActive,
+                    CreatedAt = sector.CreatedAt
+                },
                 FixedDeliveryFee = brand.FixedDeliveryFee,
                 MinVariableDeliveryFee = brand.MinVariableDeliveryFee,
                 MaxVariableDeliveryFee = brand.MaxVariableDeliveryFee,
                 DeliveryFeeType = brand.DeliveryFeeType,
+                BaseDeliveryFee = brand.BaseDeliveryFee,
+                FeePerKilometer = brand.FeePerMeter * 1000m,
+                MinDeliveryFee = brand.MinDeliveryFee,
+                MaxDeliveryFee = brand.MaxDeliveryFee,
+                MaxDeliveryDistanceKm = brand.MaxDeliveryDistanceMeters.HasValue
+                    ? brand.MaxDeliveryDistanceMeters.Value / 1000m
+                    : null,
                 LogoUrl = brand.LogoUrl,
                 MasterCategoryIds = brand.MasterCategories.Select(c => c.Id).ToList()
             });
@@ -435,14 +549,26 @@ namespace CityOrders.Api.API.Controllers
 
         [HttpGet("master-categories")]
         [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<AdminCategoryDto>>> GetMasterCategories()
+        public async Task<ActionResult<IEnumerable<AdminCategoryDto>>> GetMasterCategories([FromQuery] int? marketSectorId = null, [FromQuery] string? sector = null)
         {
-            var categories = await _context.Categories
-                .Where(c => c.IsActive)
+            var query = _context.Categories
+                .Include(c => c.MarketSector)
+                .Where(c => c.IsActive && c.MarketSector.IsActive);
+
+            if (marketSectorId.HasValue)
+                query = query.Where(c => c.MarketSectorId == marketSectorId.Value);
+
+            if (!string.IsNullOrWhiteSpace(sector))
+                query = query.Where(c => c.MarketSector.Slug == sector || c.MarketSector.Name == sector);
+
+            var categories = await query
                 .OrderBy(c => c.SortOrder)
                 .Select(c => new AdminCategoryDto
                 {
                     Id = c.Id,
+                    MarketSectorId = c.MarketSectorId,
+                    MarketSectorName = c.MarketSector.Name,
+                    MarketSectorSlug = c.MarketSector.Slug,
                     Name = c.Name,
                     Slug = c.Slug,
                     Description = c.Description,
@@ -454,6 +580,32 @@ namespace CityOrders.Api.API.Controllers
                 .ToListAsync();
 
             return Ok(categories);
+        }
+
+        [HttpGet("market-sectors")]
+        [AllowAnonymous]
+        public async Task<ActionResult<IEnumerable<AdminMarketSectorDto>>> GetMarketSectors()
+        {
+            var sectors = await _context.MarketSectors
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.SortOrder)
+                .ThenBy(s => s.Name)
+                .Select(s => new AdminMarketSectorDto
+                {
+                    Id = s.Id,
+                    Name = s.Name,
+                    Slug = s.Slug,
+                    Description = s.Description,
+                    IconKey = s.IconKey,
+                    ImageUrl = s.ImageUrl,
+                    SortOrder = s.SortOrder,
+                    IsActive = s.IsActive,
+                    CategoriesCount = s.Categories.Count(c => c.IsActive),
+                    CreatedAt = s.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(sectors);
         }
 
         // --- PRODUCT MANAGEMENT ---
@@ -644,6 +796,55 @@ namespace CityOrders.Api.API.Controllers
             return Ok(new { page, pageSize, total, items = orders });
         }
 
+        [HttpGet("orders/{id}")]
+        [Authorize(Roles = "Merchant")]
+        [RequireActiveSubscription]
+        public async Task<ActionResult<MerchantOrderDetailDto>> GetMyOrder(int id)
+        {
+            var userId = GetUserId();
+            var order = await _context.Orders
+                .Include(o => o.Brand)
+                .Include(o => o.Customer)
+                .Include(o => o.DeliveryAddress)
+                .Include(o => o.Items)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(o => o.Id == id && o.Brand.MerchantUserId == userId);
+
+            if (order == null) return NotFound();
+
+            return Ok(new MerchantOrderDetailDto
+            {
+                Id = order.Id,
+                OrderNumber = order.OrderNumber,
+                Status = order.Status.ToString(),
+                Total = order.Total,
+                Subtotal = order.Subtotal,
+                DeliveryFee = order.DeliveryFee,
+                DiscountAmount = order.DiscountAmount,
+                PromoCode = order.PromoCodeSnapshot,
+                CustomerName = order.Customer.Name,
+                CustomerEmail = order.Customer.Email,
+                DeliveryAddress = order.DeliveryAddress?.AddressLine ?? "غير متوفر",
+                AddressNotes = order.DeliveryAddress?.Notes,
+                Notes = order.Notes,
+                CreatedAt = order.CreatedAt,
+                UpdatedAt = order.UpdatedAt,
+                DeliveredAt = order.DeliveredAt,
+                DistanceMeters = order.DistanceMeters,
+                QuantityItems = order.Items.Sum(i => i.Quantity),
+                Items = order.Items.Select(i => new OrderItemDto
+                {
+                    ProductId = i.ProductId,
+                    ProductName = i.ProductNameSnapshot,
+                    UnitPrice = i.UnitPriceSnapshot,
+                    Quantity = i.Quantity,
+                    LineTotal = i.LineTotal
+                }).ToList(),
+                Timeline = BuildMerchantTimeline(order),
+                AvailableActions = GetAvailableOrderActions(order.Status)
+            });
+        }
+
         [HttpPut("orders/{id}/status")]
         [Authorize(Roles = "Merchant")]
         [RequireActiveSubscription]
@@ -692,11 +893,137 @@ namespace CityOrders.Api.API.Controllers
             if (changed)
             {
                 order.UpdatedAt = DateTime.UtcNow;
+                DeliveryDispatchResult? dispatchResult = null;
+                if (action.Equals("out-for-delivery", StringComparison.OrdinalIgnoreCase))
+                {
+                    dispatchResult = await _deliveryDispatchService.DispatchOrderAsync(order.Id);
+                }
+
                 await _context.SaveChangesAsync();
-                return Ok(new { message = $"Order status updated to {order.Status}." });
+                await _notificationService.CreateAsync(
+                    order.CustomerUserId,
+                    "تحديث حالة الطلب",
+                    $"طلبك رقم {order.OrderNumber} أصبح: {GetArabicOrderStatus(order.Status)}.",
+                    "OrderStatus",
+                    order.Id);
+                return Ok(new
+                {
+                    message = $"Order status updated to {order.Status}.",
+                    deliveryDispatch = dispatchResult == null ? null : new
+                    {
+                        dispatchResult.Created,
+                        Source = dispatchResult.Source.ToString(),
+                        dispatchResult.Message
+                    }
+                });
             }
 
             return BadRequest($"Cannot transition from {order.Status} via {action}.");
+        }
+
+        private static string GetArabicOrderStatus(OrderStatus status) => status switch
+        {
+            OrderStatus.Pending => "قيد الانتظار",
+            OrderStatus.Accepted => "مقبول",
+            OrderStatus.Preparing => "جاري التجهيز",
+            OrderStatus.OutForDelivery => "خرج للتوصيل",
+            OrderStatus.Delivered => "تم التوصيل",
+            OrderStatus.Cancelled => "ملغي",
+            _ => status.ToString()
+        };
+
+        private static List<OrderActionDto> GetAvailableOrderActions(OrderStatus status)
+        {
+            var actions = new List<OrderActionDto>();
+
+            if (status == OrderStatus.Pending)
+            {
+                actions.Add(new OrderActionDto { Action = "accept", Label = "قبول الطلب" });
+            }
+            else if (status == OrderStatus.Accepted)
+            {
+                actions.Add(new OrderActionDto { Action = "prepare", Label = "بدء التجهيز" });
+            }
+            else if (status == OrderStatus.Preparing)
+            {
+                actions.Add(new OrderActionDto { Action = "out-for-delivery", Label = "خرج للتوصيل" });
+            }
+            else if (status == OrderStatus.OutForDelivery)
+            {
+                actions.Add(new OrderActionDto { Action = "delivered", Label = "تم التوصيل" });
+            }
+
+            if (status != OrderStatus.Delivered && status != OrderStatus.Cancelled)
+            {
+                actions.Add(new OrderActionDto { Action = "cancel", Label = "إلغاء", Destructive = true });
+            }
+
+            return actions;
+        }
+
+        private static List<OrderTimelineItemDto> BuildMerchantTimeline(Order order)
+        {
+            if (order.Status == OrderStatus.Cancelled)
+            {
+                return new List<OrderTimelineItemDto>
+                {
+                    new()
+                    {
+                        Key = "Pending",
+                        Label = "تم إنشاء الطلب",
+                        Description = "الطلب وصل إلى لوحة التاجر.",
+                        Completed = true,
+                        At = order.CreatedAt
+                    },
+                    new()
+                    {
+                        Key = "Cancelled",
+                        Label = "تم إلغاء الطلب",
+                        Description = "تم إيقاف الطلب ولن يتم تجهيزه.",
+                        Completed = true,
+                        At = order.UpdatedAt
+                    }
+                };
+            }
+
+            var statusOrder = new[]
+            {
+                OrderStatus.Pending,
+                OrderStatus.Accepted,
+                OrderStatus.Preparing,
+                OrderStatus.OutForDelivery,
+                OrderStatus.Delivered
+            };
+
+            var labels = new Dictionary<OrderStatus, (string Label, string Description)>
+            {
+                [OrderStatus.Pending] = ("طلب جديد", "راجع الأصناف والعنوان ثم اقبل الطلب أو ألغيه."),
+                [OrderStatus.Accepted] = ("تم القبول", "الطلب جاهز للدخول في مرحلة التجهيز."),
+                [OrderStatus.Preparing] = ("جاري التجهيز", "يتم تجهيز الطلب داخل المتجر."),
+                [OrderStatus.OutForDelivery] = ("خرج للتوصيل", "الطلب في طريقه إلى العميل."),
+                [OrderStatus.Delivered] = ("تم التوصيل", "تم تسليم الطلب بنجاح.")
+            };
+
+            var currentIndex = Array.IndexOf(statusOrder, order.Status);
+            if (currentIndex < 0) currentIndex = 0;
+
+            return statusOrder.Select((status, index) =>
+            {
+                var text = labels[status];
+                DateTime? at = null;
+                if (status == OrderStatus.Pending) at = order.CreatedAt;
+                else if (status == OrderStatus.Delivered) at = order.DeliveredAt ?? order.UpdatedAt;
+                else if (index <= currentIndex) at = order.UpdatedAt;
+
+                return new OrderTimelineItemDto
+                {
+                    Key = status.ToString(),
+                    Label = text.Label,
+                    Description = text.Description,
+                    Completed = index <= currentIndex,
+                    At = at
+                };
+            }).ToList();
         }
 
         // Public Catalog Endpoint - Moved to CatalogController or kept as legacy redirect?
@@ -733,7 +1060,7 @@ namespace CityOrders.Api.API.Controllers
             var userId = GetUserId();
             var user = await _context.Users
                 .Include(u => u.MerchantProfile)
-                    .ThenInclude(mp => mp.Brand)
+                    .ThenInclude(mp => mp!.Brand)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId);
 

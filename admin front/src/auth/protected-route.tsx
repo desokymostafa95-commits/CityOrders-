@@ -3,9 +3,9 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './auth-context';
 
 export const ProtectedRoute: React.FC = () => {
-    const { isAuthenticated, isAdmin, isLoading } = useAuth();
+    const { isAuthenticated, isAdmin, isLoading, isPermissionsLoading } = useAuth();
 
-    if (isLoading) {
+    if (isLoading || isPermissionsLoading) {
         return <div>Loading...</div>; // Replace with a proper loader later
     }
 

@@ -9,11 +9,13 @@ import apiClient from '@/src/api/client';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { t } from '@/src/i18n';
+import { useMarketSectors } from '@/src/hooks/useMerchantData';
 
 const schema = z.object({
     brandName: z.string().min(3, 'Brand name must be at least 3 characters'),
     brandAddress: z.string().min(5, 'Address is required'),
     brandPhone: z.string().min(8, 'Valid phone number is required'),
+    marketSectorId: z.coerce.number().int().positive('Select a market sector'),
     masterCategoryIds: z.array(z.number()).min(1, 'Select at least one category'),
     fixedDeliveryFee: z.coerce.number().min(0).default(0),
     minVariableDeliveryFee: z.coerce.number().min(0).default(0),
@@ -53,16 +55,8 @@ const schema = z.object({
     }
 });
 
-type FormData = {
-    brandName: string;
-    brandAddress: string;
-    brandPhone: string;
-    masterCategoryIds: number[];
-    fixedDeliveryFee: number;
-    minVariableDeliveryFee: number;
-    maxVariableDeliveryFee: number;
-    deliveryFeeType: 'Fixed' | 'Variable';
-};
+type FormDataInput = z.input<typeof schema>;
+type FormData = z.output<typeof schema>;
 
 export default function ApplyScreen() {
     const { signIn, signOut } = useAuth();
@@ -70,13 +64,15 @@ export default function ApplyScreen() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const queryClient = useQueryClient();
+    const { data: marketSectors = [] } = useMarketSectors();
 
-    const { control, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
+    const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormDataInput, unknown, FormData>({
         resolver: zodResolver(schema),
         defaultValues: {
             brandName: '',
             brandAddress: '',
             brandPhone: '',
+            marketSectorId: 1,
             masterCategoryIds: [],
             fixedDeliveryFee: 0,
             minVariableDeliveryFee: 0,
@@ -86,18 +82,21 @@ export default function ApplyScreen() {
     });
 
     const [masterCategories, setMasterCategories] = useState<any[]>([]);
+    const selectedSectorId = watch('marketSectorId');
 
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await apiClient.get('/Merchant/master-categories');
+                const response = await apiClient.get('/Merchant/master-categories', {
+                    params: { marketSectorId: selectedSectorId || undefined },
+                });
                 setMasterCategories(response.data);
             } catch (err) {
                 console.error('Failed to fetch master categories', err);
             }
         };
         fetchCategories();
-    }, []);
+    }, [selectedSectorId]);
 
     const onSubmit: SubmitHandler<FormData> = async (data) => {
         setLoading(true);
@@ -167,6 +166,32 @@ export default function ApplyScreen() {
                         )}
                     />
                     {errors.brandName && <HelperText type="error">{errors.brandName.message}</HelperText>}
+
+                    <Text variant="labelLarge" style={styles.label}>Market sector</Text>
+                    <Controller
+                        control={control}
+                        name="marketSectorId"
+                        render={({ field: { onChange, value } }) => (
+                            <View style={styles.chipContainer}>
+                                {marketSectors.map((sector) => (
+                                    <Button
+                                        key={sector.id}
+                                        mode={value === sector.id ? "contained" : "outlined"}
+                                        onPress={() => {
+                                            onChange(sector.id);
+                                            setValue('masterCategoryIds', []);
+                                        }}
+                                        style={styles.chip}
+                                        labelStyle={{ fontSize: 12 }}
+                                        compact
+                                    >
+                                        {sector.name}
+                                    </Button>
+                                ))}
+                            </View>
+                        )}
+                    />
+                    {errors.marketSectorId && <HelperText type="error">{errors.marketSectorId.message}</HelperText>}
 
                     <Text variant="labelLarge" style={styles.label}>{t('apply.categories')}</Text>
                     <Controller

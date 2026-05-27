@@ -1,24 +1,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/api/client';
-import { MerchantSubscriptionRow, HealthStatus } from '@/types/admin';
+import { AdminAnalyticsOverview, DashboardSummary, HealthStatus } from '@/types/admin';
 
 export const useDashboardStats = () => {
-    return useQuery({
+    return useQuery<DashboardSummary>({
         queryKey: ['admin-dashboard-stats'],
         queryFn: async () => {
-            // We've updated AdminController.GetSubscriptionsMonitoring to include IsTemporarilyClosed
-            // Fetching all 'active' or 'all' to get counts
-            const response = await apiClient.get('Admin/subscriptions-monitoring', {
-                params: { filter: 'active' } // Or 'all' if we had such filter, but 'active' is a good proxy for most
-            });
-            const merchants = response.data as MerchantSubscriptionRow[];
-
-            return {
-                merchantsOnline: merchants.filter(m => m.isOnShift).length,
-                tempClosed: merchants.filter(m => m.isTemporarilyClosed).length
-            };
+            const response = await apiClient.get<DashboardSummary>('Admin/dashboard-summary');
+            return response.data;
         },
-        refetchInterval: 7000 // Refresh every 7 seconds
+        refetchInterval: 7000,
     });
 };
 
@@ -30,7 +21,6 @@ export const useSystemHealth = () => {
         queryFn: async () => {
             const start = performance.now();
             try {
-                // Using Admin/settings as a lightweight health check
                 await apiClient.get('Admin/settings');
                 const end = performance.now();
                 return {
@@ -48,7 +38,7 @@ export const useSystemHealth = () => {
                 };
             }
         },
-        refetchInterval: 30000, // 30 seconds
+        refetchInterval: 30000,
         retry: false
     });
 
@@ -57,4 +47,17 @@ export const useSystemHealth = () => {
     };
 
     return { ...query, refresh };
+};
+
+export const useAdminAnalyticsOverview = (days = 7) => {
+    return useQuery<AdminAnalyticsOverview>({
+        queryKey: ['admin-analytics-overview', days],
+        queryFn: async () => {
+            const response = await apiClient.get<AdminAnalyticsOverview>('Analytics/admin/overview', {
+                params: { days }
+            });
+            return response.data;
+        },
+        refetchInterval: 10000,
+    });
 };

@@ -188,6 +188,9 @@ namespace CityOrders.Api.Application.DTOs
         public bool IsApproved { get; set; }
         public bool IsTemporarilyClosed { get; set; }
         public string? ApprovalRequestReason { get; set; }
+        public int? MarketSectorId { get; set; }
+        public string? MarketSectorName { get; set; }
+        public string? MarketSectorSlug { get; set; }
         public List<string> MasterCategories { get; set; } = new();
         public List<int> MasterCategoryIds { get; set; } = new();
     }

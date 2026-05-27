@@ -125,6 +125,18 @@ export default function ProductsScreen() {
                 )}
             />
             <Card.Content>
+                <View style={styles.visibilityRow}>
+                    <Chip
+                        compact
+                        style={{ backgroundColor: item.isActive ? '#E8F5E9' : '#FFF3E0' }}
+                        textStyle={{
+                            color: item.isActive ? '#2E7D32' : '#E65100',
+                            fontWeight: '700',
+                        }}
+                    >
+                        {item.isActive ? 'ظاهر للعميل' : 'مخفي عن العميل'}
+                    </Chip>
+                </View>
                 <Paragraph numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
                     {item.description || t('products.no_description')}
                 </Paragraph>
@@ -266,6 +278,10 @@ const styles = StyleSheet.create({
     cardActions: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    visibilityRow: {
+        flexDirection: 'row',
+        marginBottom: 8,
     },
     sectionHeader: {
         paddingVertical: 8,

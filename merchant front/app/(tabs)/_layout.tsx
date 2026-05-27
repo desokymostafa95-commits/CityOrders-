@@ -66,7 +66,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="promos"
         options={{
-          title: 'Promo Codes',
+          title: t('common.promos'),
           tabBarIcon: ({ color }) => <Tag size={24} color={color} />,
         }}
       />

@@ -1,9 +1,14 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
+import { t } from '../i18n';
 
-const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:5014/api';
+
+const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5014/api';
+const API_URL = Platform.OS === 'android'
+    ? configuredApiBaseUrl.replace('localhost', '10.0.2.2').replace('127.0.0.1', '10.0.2.2')
+    : configuredApiBaseUrl;
 
 console.log('API Base URL:', API_URL);
 
@@ -50,9 +55,26 @@ http.interceptors.request.use(async (config) => {
     return config;
 });
 
+let lastAlertTime = 0;
+
 http.interceptors.response.use(
     (response) => response,
     async (error) => {
+        if (!error.response) {
+            const now = Date.now();
+            if (now - lastAlertTime > 5000) {
+                lastAlertTime = now;
+                if (Platform.OS === 'web') {
+                    alert(t('errors.network_message'));
+                } else {
+                    Alert.alert(
+                        t('errors.network'),
+                        t('errors.network_message'),
+                        [{ text: 'OK' }]
+                    );
+                }
+            }
+        }
         if (error.response?.status === 401) {
             await removeToken();
             router.replace('/(auth)/login');

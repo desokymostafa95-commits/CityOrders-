@@ -80,7 +80,7 @@ function RootLayoutNav() {
   const segments = useSegments();
   const navigationState = useRootNavigationState();
 
-  const firstSegment = segments?.[0];
+  const firstSegment = segments?.[0] as string | undefined;
   const inApplyGroup = firstSegment === 'apply';
 
   const isMerchant = roles.includes('Merchant');

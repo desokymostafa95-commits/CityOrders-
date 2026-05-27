@@ -17,7 +17,7 @@ namespace CityOrders.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0-preview.1.25081.1")
+                .HasAnnotation("ProductVersion", "10.0.2")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -35,6 +35,62 @@ namespace CityOrders.Api.Migrations
                     b.HasIndex("MasterCategoriesId");
 
                     b.ToTable("BrandMasterCategories", (string)null);
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.AnalyticsEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BrandId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int?>("CustomerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SearchTerm")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("SessionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VisitorId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerUserId");
+
+                    b.HasIndex("VisitorId");
+
+                    b.HasIndex("BrandId", "EventType", "CreatedAt");
+
+                    b.HasIndex("BrandId", "SearchTerm", "CreatedAt");
+
+                    b.HasIndex("ProductId", "EventType", "CreatedAt");
+
+                    b.ToTable("AnalyticsEvents");
                 });
 
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.AppSettings", b =>
@@ -161,6 +217,9 @@ namespace CityOrders.Api.Migrations
                     b.Property<string>("LogoUrl")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("MarketSectorId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("MaxDeliveryDistanceMeters")
                         .HasColumnType("int");
 
@@ -197,6 +256,8 @@ namespace CityOrders.Api.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MarketSectorId");
 
                     b.HasIndex("MerchantUserId")
                         .IsUnique();
@@ -294,6 +355,47 @@ namespace CityOrders.Api.Migrations
                     b.ToTable("BrandOffers");
                 });
 
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.BrandReview", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BrandId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int>("CustomerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerUserId");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique();
+
+                    b.HasIndex("BrandId", "CreatedAt");
+
+                    b.ToTable("BrandReviews");
+                });
+
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -322,6 +424,9 @@ namespace CityOrders.Api.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<int>("MarketSectorId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -343,7 +448,118 @@ namespace CityOrders.Api.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
+                    b.HasIndex("MarketSectorId", "SortOrder");
+
                     b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.ChatMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("SenderUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ThreadId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderUserId");
+
+                    b.HasIndex("ThreadId", "CreatedAt");
+
+                    b.ToTable("ChatMessages");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.ChatThread", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AdminUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BrandId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int?>("CustomerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsBlockedByCustomer")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsBlockedByMerchant")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MerchantUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminUserId");
+
+                    b.HasIndex("BrandId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("CustomerUserId", "UpdatedAt");
+
+                    b.HasIndex("MerchantUserId", "UpdatedAt");
+
+                    b.HasIndex("Type", "OrderId")
+                        .IsUnique()
+                        .HasFilter("[OrderId] IS NOT NULL");
+
+                    b.HasIndex("Type", "MerchantUserId", "AdminUserId")
+                        .IsUnique()
+                        .HasFilter("[AdminUserId] IS NOT NULL");
+
+                    b.ToTable("ChatThreads");
                 });
 
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.CustomerAddress", b =>
@@ -404,9 +620,234 @@ namespace CityOrders.Api.Migrations
                     b.ToTable("CustomerProfiles");
                 });
 
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.DeliveryAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("AgentEarningAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("AgentUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CollectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CollectedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("CollectionAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("CollectionCycleDays")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CollectionDueAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CollectionMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CollectionMethodsSnapshot")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int?>("CollectionRecipient")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CollectionStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DeliveryFeeSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("DeliveryOfficeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("OfficeCommissionAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("OfficeCommissionPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("PickedUpAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("PlatformCommissionAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PlatformCommissionPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentUserId");
+
+                    b.HasIndex("CollectedByUserId");
+
+                    b.HasIndex("DeliveryOfficeId");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "Source", "CreatedAt");
+
+                    b.ToTable("DeliveryAssignments");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.DeliveryOffice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("AgentCollectionCycleDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(7);
+
+                    b.Property<string>("AgentCollectionMethodsJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasDefaultValue("[\"Cash\",\"Instapay\",\"COD\"]");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<decimal>("DefaultCommissionPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("ManagerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ManagerUserId")
+                        .IsUnique();
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("DeliveryOffices");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.DeliveryPlatformSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int>("IndependentCollectionCycleDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(7);
+
+                    b.Property<string>("IndependentCollectionMethodsJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasDefaultValue("[\"Cash\",\"Instapay\",\"COD\"]");
+
+                    b.Property<decimal>("IndependentPlatformCommissionPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DeliveryPlatformSettings");
+                });
+
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.DeliveryProfile", b =>
                 {
                     b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AgentType")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("CommissionPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int?>("DeliveryOfficeId")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
@@ -414,7 +855,41 @@ namespace CityOrders.Api.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<bool>("IsAvailable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal?>("LastLat")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("LastLng")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<DateTime?>("LastLocationAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("MerchantUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VehicleType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("UserId");
+
+                    b.HasIndex("DeliveryOfficeId");
+
+                    b.HasIndex("MerchantUserId");
+
+                    b.HasIndex("AgentType", "IsActive", "IsAvailable");
 
                     b.ToTable("DeliveryProfiles");
                 });
@@ -447,6 +922,122 @@ namespace CityOrders.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Announcements");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.MarketSector", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("IconKey")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("MarketSectors");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.MerchantDailyAnalytics", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AbandonedCarts")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AddToCartEvents")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BrandId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CheckoutStartedEvents")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Orders")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductViews")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PromoDiscount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Revenue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Searches")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoreViews")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UniqueProductViewers")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UniqueStoreVisitors")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrandId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("MerchantDailyAnalytics");
                 });
 
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.MerchantProfile", b =>
@@ -590,8 +1181,9 @@ namespace CityOrders.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("UnitPriceSnapshot")
                         .HasPrecision(18, 2)
@@ -785,6 +1377,8 @@ namespace CityOrders.Api.Migrations
 
                     b.HasIndex("PromoCodeId");
 
+                    b.HasIndex("BrandId", "Status", "DeliveredAt");
+
                     b.ToTable("Orders");
                 });
 
@@ -810,8 +1404,9 @@ namespace CityOrders.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("UnitPriceSnapshot")
                         .HasPrecision(18, 2)
@@ -1259,6 +1854,52 @@ namespace CityOrders.Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("RelatedOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RelatedOrderId");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt");
+
+                    b.ToTable("UserNotifications");
+                });
+
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.UserRole", b =>
                 {
                     b.Property<int>("UserId")
@@ -1289,8 +1930,39 @@ namespace CityOrders.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.AnalyticsEvent", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.Brand", "Brand")
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Brand");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.Brand", b =>
                 {
+                    b.HasOne("CityOrders.Api.Domain.Entities.MarketSector", "MarketSector")
+                        .WithMany("Brands")
+                        .HasForeignKey("MarketSectorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("CityOrders.Api.Domain.Entities.MerchantProfile", "MerchantProfile")
                         .WithOne("Brand")
                         .HasForeignKey("CityOrders.Api.Domain.Entities.Brand", "MerchantUserId")
@@ -1300,6 +1972,8 @@ namespace CityOrders.Api.Migrations
                     b.HasOne("CityOrders.Api.Domain.Entities.User", null)
                         .WithMany("Brands")
                         .HasForeignKey("UserId");
+
+                    b.Navigation("MarketSector");
 
                     b.Navigation("MerchantProfile");
                 });
@@ -1334,6 +2008,102 @@ namespace CityOrders.Api.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.BrandReview", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.Brand", "Brand")
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Brand");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.Category", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.MarketSector", "MarketSector")
+                        .WithMany("Categories")
+                        .HasForeignKey("MarketSectorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MarketSector");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.ChatMessage", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.ChatThread", "Thread")
+                        .WithMany("Messages")
+                        .HasForeignKey("ThreadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sender");
+
+                    b.Navigation("Thread");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.ChatThread", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "Admin")
+                        .WithMany()
+                        .HasForeignKey("AdminUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.Brand", "Brand")
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "Merchant")
+                        .WithMany()
+                        .HasForeignKey("MerchantUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Admin");
+
+                    b.Navigation("Brand");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Merchant");
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.CustomerAddress", b =>
                 {
                     b.HasOne("CityOrders.Api.Domain.Entities.CustomerProfile", "CustomerProfile")
@@ -1360,15 +2130,83 @@ namespace CityOrders.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.DeliveryAssignment", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "AgentUser")
+                        .WithMany()
+                        .HasForeignKey("AgentUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "CollectedByUser")
+                        .WithMany()
+                        .HasForeignKey("CollectedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.DeliveryOffice", "DeliveryOffice")
+                        .WithMany()
+                        .HasForeignKey("DeliveryOfficeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.Order", "Order")
+                        .WithOne("DeliveryAssignment")
+                        .HasForeignKey("CityOrders.Api.Domain.Entities.DeliveryAssignment", "OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AgentUser");
+
+                    b.Navigation("CollectedByUser");
+
+                    b.Navigation("DeliveryOffice");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.DeliveryOffice", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "ManagerUser")
+                        .WithOne("ManagedDeliveryOffice")
+                        .HasForeignKey("CityOrders.Api.Domain.Entities.DeliveryOffice", "ManagerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ManagerUser");
+                });
+
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.DeliveryProfile", b =>
                 {
+                    b.HasOne("CityOrders.Api.Domain.Entities.DeliveryOffice", "DeliveryOffice")
+                        .WithMany("DeliveryAgents")
+                        .HasForeignKey("DeliveryOfficeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "MerchantUser")
+                        .WithMany()
+                        .HasForeignKey("MerchantUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CityOrders.Api.Domain.Entities.User", "User")
                         .WithOne("DeliveryProfile")
                         .HasForeignKey("CityOrders.Api.Domain.Entities.DeliveryProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("DeliveryOffice");
+
+                    b.Navigation("MerchantUser");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.MerchantDailyAnalytics", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.Brand", "Brand")
+                        .WithMany()
+                        .HasForeignKey("BrandId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Brand");
                 });
 
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.MerchantProfile", b =>
@@ -1599,6 +2437,24 @@ namespace CityOrders.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.UserNotification", b =>
+                {
+                    b.HasOne("CityOrders.Api.Domain.Entities.Order", "RelatedOrder")
+                        .WithMany()
+                        .HasForeignKey("RelatedOrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("CityOrders.Api.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RelatedOrder");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.UserRole", b =>
                 {
                     b.HasOne("CityOrders.Api.Domain.Entities.Role", "Role")
@@ -1630,9 +2486,26 @@ namespace CityOrders.Api.Migrations
                     b.Navigation("Products");
                 });
 
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.ChatThread", b =>
+                {
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.CustomerProfile", b =>
                 {
                     b.Navigation("Addresses");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.DeliveryOffice", b =>
+                {
+                    b.Navigation("DeliveryAgents");
+                });
+
+            modelBuilder.Entity("CityOrders.Api.Domain.Entities.MarketSector", b =>
+                {
+                    b.Navigation("Brands");
+
+                    b.Navigation("Categories");
                 });
 
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.MerchantProfile", b =>
@@ -1649,6 +2522,8 @@ namespace CityOrders.Api.Migrations
 
             modelBuilder.Entity("CityOrders.Api.Domain.Entities.Order", b =>
                 {
+                    b.Navigation("DeliveryAssignment");
+
                     b.Navigation("Items");
                 });
 
@@ -1683,6 +2558,8 @@ namespace CityOrders.Api.Migrations
                     b.Navigation("CustomerProfile");
 
                     b.Navigation("DeliveryProfile");
+
+                    b.Navigation("ManagedDeliveryOffice");
 
                     b.Navigation("MerchantProfile");
 

@@ -8,23 +8,25 @@ import * as Location from 'expo-location';
 import { useCreateAddress } from '../../../../src/hooks/addresses';
 import { Stack, router } from 'expo-router';
 import { MapPin, Target } from 'lucide-react-native';
+import { MapLocationPicker } from '../../../../src/components/MapLocationPicker';
 
 const addressSchema = z.object({
-    addressLine: z.string().min(5, 'Address is too short'),
+    addressLine: z.string().min(5, 'العنوان قصير جدا'),
     notes: z.string().optional(),
     isDefault: z.boolean().default(false),
-    lat: z.number().refine(v => v !== 0, 'Latitude is required'),
-    lng: z.number().refine(v => v !== 0, 'Longitude is required'),
+    lat: z.number().refine(v => v !== 0, 'اختيار الموقع مطلوب'),
+    lng: z.number().refine(v => v !== 0, 'اختيار الموقع مطلوب'),
 });
 
-type AddressForm = z.infer<typeof addressSchema>;
+type AddressFormInput = z.input<typeof addressSchema>;
+type AddressForm = z.output<typeof addressSchema>;
 
 export default function NewAddressScreen() {
     const theme = useTheme();
     const [localLoading, setLocalLoading] = useState(false);
     const { mutate: createAddress, isPending } = useCreateAddress();
 
-    const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<AddressForm>({
+    const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<AddressFormInput, unknown, AddressForm>({
         resolver: zodResolver(addressSchema),
         defaultValues: {
             addressLine: '',
@@ -38,20 +40,24 @@ export default function NewAddressScreen() {
     const lat = watch('lat');
     const lng = watch('lng');
 
+    const handleMapLocationChange = (location: { lat: number; lng: number }) => {
+        setValue('lat', location.lat, { shouldDirty: true, shouldValidate: true });
+        setValue('lng', location.lng, { shouldDirty: true, shouldValidate: true });
+    };
+
     const getCurrentLocation = async () => {
         setLocalLoading(true);
         try {
             let { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission denied', 'Location permission is required to fetch your current position.');
+                Alert.alert('إذن الموقع مرفوض', 'فعّل إذن الموقع أو اختار المكان من الخريطة.');
                 return;
             }
 
             let location = await Location.getCurrentPositionAsync({});
-            setValue('lat', location.coords.latitude);
-            setValue('lng', location.coords.longitude);
+            setValue('lat', location.coords.latitude, { shouldDirty: true, shouldValidate: true });
+            setValue('lng', location.coords.longitude, { shouldDirty: true, shouldValidate: true });
 
-            // Optionally reverse geocode to fill addressLine
             const [place] = await Location.reverseGeocodeAsync({
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
@@ -62,7 +68,7 @@ export default function NewAddressScreen() {
                 if (addr.length > 5) setValue('addressLine', addr);
             }
         } catch (error) {
-            Alert.alert('Error', 'Could not fetch your location. Please enter manually.');
+            Alert.alert('تعذر تحديد الموقع', 'اختار المكان من الخريطة أو اكتب العنوان يدويا.');
         } finally {
             setLocalLoading(false);
         }
@@ -76,7 +82,7 @@ export default function NewAddressScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ title: 'Add New Address' }} />
+            <Stack.Screen options={{ title: 'إضافة عنوان جديد' }} />
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
                 <Card style={styles.card}>
@@ -89,20 +95,29 @@ export default function NewAddressScreen() {
                             disabled={localLoading}
                             style={styles.locationBtn}
                         >
-                            Get Current Location
+                            استخدام موقعي الحالي
                         </Button>
 
                         {lat !== 0 && (
                             <View style={styles.coordsRow}>
                                 <MapPin size={16} color={theme.colors.primary} />
                                 <Text variant="labelMedium" style={styles.coordsText}>
-                                    GPS Captured: {lat.toFixed(6)}, {lng.toFixed(6)}
+                                    تم تحديد الموقع: {lat.toFixed(6)}, {lng.toFixed(6)}
                                 </Text>
                             </View>
                         )}
 
+                        <Text variant="labelLarge" style={styles.mapLabel}>
+                            اختار المكان من الخريطة
+                        </Text>
+                        <MapLocationPicker
+                            latitude={lat}
+                            longitude={lng}
+                            onChange={handleMapLocationChange}
+                        />
+
                         {(errors.lat || errors.lng) && (
-                            <HelperText type="error">Please capture your GPS location using the button above.</HelperText>
+                            <HelperText type="error">اختار موقعك من الخريطة أو استخدم موقعك الحالي.</HelperText>
                         )}
 
                         <Controller
@@ -111,7 +126,7 @@ export default function NewAddressScreen() {
                             render={({ field: { onChange, onBlur, value } }) => (
                                 <View style={styles.inputContainer}>
                                     <TextInput
-                                        label="Full Address (House, Street, etc.)"
+                                        label="العنوان بالتفصيل"
                                         value={value}
                                         onBlur={onBlur}
                                         onChangeText={onChange}
@@ -130,8 +145,8 @@ export default function NewAddressScreen() {
                             render={({ field: { onChange, onBlur, value } }) => (
                                 <View style={styles.inputContainer}>
                                     <TextInput
-                                        label="Notes for delivery (Optional)"
-                                        placeholder="e.g. Apartment 5, 2nd floor"
+                                        label="ملاحظات للتوصيل"
+                                        placeholder="مثال: شقة 5، الدور الثاني"
                                         value={value || ''}
                                         onBlur={onBlur}
                                         onChangeText={onChange}
@@ -142,12 +157,12 @@ export default function NewAddressScreen() {
                         />
 
                         <View style={styles.switchRow}>
-                            <Text variant="bodyMedium">Set as default address</Text>
+                            <Text variant="bodyMedium">اجعله العنوان الأساسي</Text>
                             <Controller
                                 control={control}
                                 name="isDefault"
                                 render={({ field: { onChange, value } }) => (
-                                    <Switch value={value} onValueChange={onChange} color={theme.colors.primary} />
+                                    <Switch value={Boolean(value)} onValueChange={onChange} color={theme.colors.primary} />
                                 )}
                             />
                         </View>
@@ -161,7 +176,7 @@ export default function NewAddressScreen() {
                     disabled={isPending || localLoading}
                     style={styles.submitBtn}
                 >
-                    Save Address
+                    حفظ العنوان
                 </Button>
 
             </ScrollView>
@@ -195,6 +210,9 @@ const styles = StyleSheet.create({
     coordsText: {
         marginLeft: 8,
         color: '#2E7D32',
+    },
+    mapLabel: {
+        marginBottom: 8,
     },
     inputContainer: {
         marginBottom: 12,

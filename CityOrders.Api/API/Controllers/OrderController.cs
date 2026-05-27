@@ -16,11 +16,13 @@ namespace CityOrders.Api.API.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly NotificationService _notificationService;
 
-        public OrderController(AppDbContext context, IConfiguration configuration)
+        public OrderController(AppDbContext context, IConfiguration configuration, NotificationService notificationService)
         {
             _context = context;
             _configuration = configuration;
+            _notificationService = notificationService;
         }
 
         private int GetUserId()
@@ -39,8 +41,8 @@ namespace CityOrders.Api.API.Controllers
             var userId = GetUserId();
 
             // 1. Validate Items
-            if (dto.Items == null || !dto.Items.Any()) return BadRequest("Order must have items.");
-            if (dto.Items.Any(i => i.Quantity <= 0)) return BadRequest("Quantity must be > 0.");
+            if (dto.Items == null || !dto.Items.Any()) return BadRequest("يجب إضافة منتجات للطلب.");
+            if (dto.Items.Any(i => i.Quantity <= 0)) return BadRequest("كمية المنتج يجب أن تكون أكبر من صفر.");
 
             // 2. Validate Profile
             var customerProfile = await _context.CustomerProfiles.FirstOrDefaultAsync(c => c.UserId == userId);
@@ -51,16 +53,20 @@ namespace CityOrders.Api.API.Controllers
                 .Include(b => b.MerchantProfile)
                 .FirstOrDefaultAsync(b => b.Id == dto.BrandId);
 
-            if (brand == null || !brand.IsActive) return BadRequest("Brand not valid or inactive.");
-            if (brand.MerchantProfile == null || !brand.MerchantProfile.IsApproved) return BadRequest("Brand is not currently accepting orders.");
-            if (!brand.MerchantProfile.IsActive) return BadRequest("Merchant is currently unavailable. Please try again later.");
+            if (brand == null || !brand.IsActive) return BadRequest("المتجر غير متاح حاليا.");
+            if (brand.MerchantProfile == null || !brand.MerchantProfile.IsApproved) return BadRequest("المتجر لا يستقبل طلبات حاليا.");
+            if (!brand.MerchantProfile.IsActive) return BadRequest("التاجر غير متاح حاليا. حاول مرة أخرى لاحقا.");
+            var isTemporarilyClosed = brand.MerchantProfile.IsTemporarilyClosed &&
+                (!brand.MerchantProfile.TemporaryCloseUntil.HasValue || brand.MerchantProfile.TemporaryCloseUntil.Value > DateTime.UtcNow);
+            if (!brand.MerchantProfile.IsOnShift || isTemporarilyClosed)
+                return BadRequest("التاجر غير متاح حاليا. حاول مرة أخرى لاحقا.");
 
             var hasSubscription = await _context.MerchantSubscriptions.AnyAsync(ms => ms.UserId == brand.MerchantUserId);
-            if (!hasSubscription) return BadRequest("Brand is currently not accepting orders due to subscription status.");
+            if (!hasSubscription) return BadRequest("المتجر لا يستقبل طلبات حاليا بسبب حالة الاشتراك.");
 
             // 4. Validate Address (must belong to customer)
             var address = await _context.CustomerAddresses.FirstOrDefaultAsync(a => a.Id == dto.DeliveryAddressId && a.CustomerUserId == userId);
-            if (address == null) return BadRequest("Invalid delivery address.");
+            if (address == null) return BadRequest("عنوان التوصيل غير صحيح.");
 
             // 5. Calculate delivery fee based on distance
             var deliveryResult = DeliveryFeeCalculator.CalculateDelivery(
@@ -83,7 +89,7 @@ namespace CityOrders.Api.API.Controllers
                 .ToDictionaryAsync(p => p.Id);
 
             if (products.Count != distinctProductIds.Count)
-                return BadRequest("Some products are invalid, inactive, or do not belong to this brand.");
+                return BadRequest("بعض المنتجات غير متاحة أو لا تتبع هذا المتجر.");
 
             // 7. Build order items & subtotal
             decimal subtotal = 0;
@@ -121,23 +127,23 @@ namespace CityOrders.Api.API.Controllers
                     .FirstOrDefaultAsync(p => p.BrandId == dto.BrandId && p.Code == code);
 
                 if (appliedPromo == null)
-                    return BadRequest("Promo code not found.");
+                    return BadRequest("كود الخصم غير موجود.");
                 if (!appliedPromo.IsActive)
-                    return BadRequest("This promo code is inactive.");
+                    return BadRequest("كود الخصم غير مفعل حاليا.");
                 if (appliedPromo.StartsAt.HasValue && appliedPromo.StartsAt > now)
-                    return BadRequest("This promo code hasn't started yet.");
+                    return BadRequest("كود الخصم لم يبدأ بعد.");
                 if (appliedPromo.ExpiresAt.HasValue && appliedPromo.ExpiresAt < now)
-                    return BadRequest("This promo code has expired.");
+                    return BadRequest("انتهت صلاحية كود الخصم.");
                 if (appliedPromo.UsageLimit.HasValue && appliedPromo.UsageCount >= appliedPromo.UsageLimit)
-                    return BadRequest("This promo code has reached its usage limit.");
+                    return BadRequest("تم الوصول للحد الأقصى لاستخدام هذا الكود.");
                 if (appliedPromo.MinOrderAmount.HasValue && subtotal < appliedPromo.MinOrderAmount)
-                    return BadRequest($"Minimum order of {appliedPromo.MinOrderAmount:F2} EGP required for this code.");
+                    return BadRequest($"الحد الأدنى للطلب لاستخدام الكود هو {appliedPromo.MinOrderAmount:F2} جنيه.");
 
                 // Check if customer already used this code
                 var alreadyUsed = await _context.PromoCodeUsages
                     .AnyAsync(u => u.PromoCodeId == appliedPromo.Id && u.CustomerUserId == userId);
                 if (alreadyUsed)
-                    return BadRequest("You have already used this promo code.");
+                    return BadRequest("استخدمت هذا الكود من قبل.");
 
                 // Calculate discount
                 discountAmount = appliedPromo.DiscountType == "Percentage"
@@ -181,6 +187,13 @@ namespace CityOrders.Api.API.Controllers
 
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
+
+            await _notificationService.CreateAsync(
+                brand.MerchantUserId,
+                "طلب جديد",
+                $"وصلك طلب جديد رقم {order.OrderNumber}.",
+                "NewOrder",
+                order.Id);
 
             // 10. Record promo usage & increment counter
             if (appliedPromo != null)
@@ -250,6 +263,10 @@ namespace CityOrders.Api.API.Controllers
 
             if (order == null) return NotFound();
 
+            var review = await _context.BrandReviews
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.OrderId == order.Id && r.CustomerUserId == userId);
+
             return new OrderDetailDto
             {
                 Id = order.Id,
@@ -274,7 +291,19 @@ namespace CityOrders.Api.API.Controllers
                      UnitPrice = i.UnitPriceSnapshot,
                      Quantity = i.Quantity,
                      LineTotal = i.LineTotal
-                }).ToList()
+                }).ToList(),
+                Timeline = BuildTimeline(order),
+                NextStep = GetNextStep(order.Status),
+                CanReview = order.Status == OrderStatus.Delivered && review == null,
+                Review = review == null ? null : new BrandReviewDto
+                {
+                    Id = review.Id,
+                    OrderId = review.OrderId,
+                    BrandId = review.BrandId,
+                    Rating = review.Rating,
+                    Comment = review.Comment,
+                    CreatedAt = review.CreatedAt
+                }
             };
 
         }
@@ -283,7 +312,9 @@ namespace CityOrders.Api.API.Controllers
         public async Task<IActionResult> CancelOrder(int id)
         {
             var userId = GetUserId();
-            var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == id && o.CustomerUserId == userId);
+            var order = await _context.Orders
+                .Include(o => o.Brand)
+                .FirstOrDefaultAsync(o => o.Id == id && o.CustomerUserId == userId);
 
             if (order == null) return NotFound();
 
@@ -294,7 +325,138 @@ namespace CityOrders.Api.API.Controllers
             order.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+            await _notificationService.CreateAsync(
+                order.Brand.MerchantUserId,
+                "تم إلغاء طلب",
+                $"العميل ألغى الطلب رقم {order.OrderNumber}.",
+                "OrderCancelled",
+                order.Id);
             return Ok(new { message = "Order cancelled.", status = order.Status.ToString() });
         }
+
+        [HttpPost("{id}/review")]
+        public async Task<IActionResult> ReviewOrder(int id, [FromBody] CreateBrandReviewDto dto)
+        {
+            var userId = GetUserId();
+
+            if (dto.Rating < 1 || dto.Rating > 5)
+                return BadRequest("Rating must be between 1 and 5.");
+
+            var order = await _context.Orders
+                .Include(o => o.Brand)
+                .FirstOrDefaultAsync(o => o.Id == id && o.CustomerUserId == userId);
+
+            if (order == null) return NotFound();
+            if (order.Status != OrderStatus.Delivered)
+                return BadRequest("Only delivered orders can be reviewed.");
+
+            var exists = await _context.BrandReviews.AnyAsync(r => r.OrderId == id);
+            if (exists) return BadRequest("Order already reviewed.");
+
+            var review = new BrandReview
+            {
+                OrderId = order.Id,
+                BrandId = order.BrandId,
+                CustomerUserId = userId,
+                Rating = dto.Rating,
+                Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim()
+            };
+
+            _context.BrandReviews.Add(review);
+            await _context.SaveChangesAsync();
+
+            await _notificationService.CreateAsync(
+                order.Brand.MerchantUserId,
+                "تقييم جديد",
+                $"وصلك تقييم {review.Rating} من 5 على الطلب رقم {order.OrderNumber}.",
+                "NewReview",
+                order.Id);
+
+            return Ok(new BrandReviewDto
+            {
+                Id = review.Id,
+                OrderId = review.OrderId,
+                BrandId = review.BrandId,
+                Rating = review.Rating,
+                Comment = review.Comment,
+                CreatedAt = review.CreatedAt
+            });
+        }
+
+        private static List<OrderTimelineItemDto> BuildTimeline(Order order)
+        {
+            var statusOrder = new[]
+            {
+                OrderStatus.Pending,
+                OrderStatus.Accepted,
+                OrderStatus.Preparing,
+                OrderStatus.OutForDelivery,
+                OrderStatus.Delivered
+            };
+
+            var labels = new Dictionary<OrderStatus, (string Label, string Description)>
+            {
+                [OrderStatus.Pending] = ("تم إرسال الطلب", "الطلب وصل للتاجر وفي انتظار القبول."),
+                [OrderStatus.Accepted] = ("تم قبول الطلب", "التاجر قبل الطلب وسيبدأ التحضير."),
+                [OrderStatus.Preparing] = ("جاري التحضير", "طلبك يتم تجهيزه الآن."),
+                [OrderStatus.OutForDelivery] = ("في الطريق", "الطلب خرج للتوصيل."),
+                [OrderStatus.Delivered] = ("تم التسليم", "تم تسليم الطلب بنجاح.")
+            };
+
+            if (order.Status == OrderStatus.Cancelled)
+            {
+                return new List<OrderTimelineItemDto>
+                {
+                    new()
+                    {
+                        Key = "Pending",
+                        Label = "تم إرسال الطلب",
+                        Description = "الطلب تم إنشاؤه.",
+                        Completed = true,
+                        At = order.CreatedAt
+                    },
+                    new()
+                    {
+                        Key = "Cancelled",
+                        Label = "تم إلغاء الطلب",
+                        Description = "تم إلغاء الطلب.",
+                        Completed = true,
+                        At = order.UpdatedAt
+                    }
+                };
+            }
+
+            var currentIndex = Array.IndexOf(statusOrder, order.Status);
+            if (currentIndex < 0) currentIndex = 0;
+
+            return statusOrder.Select((status, index) =>
+            {
+                var text = labels[status];
+                DateTime? at = null;
+                if (status == OrderStatus.Pending) at = order.CreatedAt;
+                else if (status == OrderStatus.Delivered) at = order.DeliveredAt ?? order.UpdatedAt;
+                else if (index <= currentIndex) at = order.UpdatedAt;
+
+                return new OrderTimelineItemDto
+                {
+                    Key = status.ToString(),
+                    Label = text.Label,
+                    Description = text.Description,
+                    Completed = index <= currentIndex,
+                    At = at
+                };
+            }).ToList();
+        }
+
+        private static string GetNextStep(OrderStatus status) => status switch
+        {
+            OrderStatus.Pending => "في انتظار قبول التاجر.",
+            OrderStatus.Accepted => "الخطوة التالية: يبدأ التاجر التحضير.",
+            OrderStatus.Preparing => "الخطوة التالية: خروج الطلب للتوصيل.",
+            OrderStatus.OutForDelivery => "الطلب في الطريق إليك.",
+            OrderStatus.Delivered => "الطلب مكتمل.",
+            OrderStatus.Cancelled => "الطلب ملغي.",
+            _ => string.Empty
+        };
     }
 }

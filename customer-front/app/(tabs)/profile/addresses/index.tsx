@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Card, FAB, ActivityIndicator, useTheme, IconButton, Chip } from 'react-native-paper';
+import { Text, Card, FAB, ActivityIndicator, useTheme, IconButton, Chip, Button } from 'react-native-paper';
 import { useAddresses, useSetDefaultAddress, useDeleteAddress } from '../../../../src/hooks/addresses';
 import { Stack, router } from 'expo-router';
 import { MapPin, Trash2, CheckCircle2 } from 'lucide-react-native';
@@ -21,13 +21,13 @@ export default function AddressesScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ title: 'My Addresses' }} />
+            <Stack.Screen options={{ title: 'عناويني' }} />
 
             {error || addresses?.length === 0 ? (
                 <View style={styles.centered}>
                     <MapPin size={64} color="#ccc" />
-                    <Text variant="headlineSmall" style={styles.emptyText}>No addresses yet</Text>
-                    <Text variant="bodyMedium">Add a delivery address to start ordering</Text>
+                    <Text variant="headlineSmall" style={styles.emptyText}>لا توجد عناوين بعد</Text>
+                    <Text variant="bodyMedium">أضف عنوان توصيل لتبدأ الطلب</Text>
                 </View>
             ) : (
                 <FlatList
@@ -46,7 +46,7 @@ export default function AddressesScreen() {
                                     </View>
                                     {item.isDefault && (
                                         <Chip compact icon={() => <CheckCircle2 size={14} color={theme.colors.primary} />}>
-                                            Default
+                                            أساسي
                                         </Chip>
                                     )}
                                 </View>
@@ -61,11 +61,11 @@ export default function AddressesScreen() {
                                 <View style={styles.actions}>
                                     {!item.isDefault && (
                                         <Button compact mode="text" onPress={() => setDefault(item.id)}>
-                                            Set Default
+                                            اجعله أساسيا
                                         </Button>
                                     )}
                                     <Button compact mode="text" onPress={() => router.push(`/(tabs)/profile/addresses/${item.id}`)}>
-                                        Edit
+                                        تعديل
                                     </Button>
                                     <IconButton
                                         icon={() => <Trash2 size={20} color={theme.colors.error} />}
@@ -80,7 +80,7 @@ export default function AddressesScreen() {
 
             <FAB
                 icon="plus"
-                label="Add Address"
+                label="إضافة عنوان"
                 style={[styles.fab, { backgroundColor: theme.colors.primary }]}
                 color="#fff"
                 onPress={() => router.push('/(tabs)/profile/addresses/new')}

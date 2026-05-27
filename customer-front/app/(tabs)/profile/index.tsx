@@ -1,15 +1,17 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, List, Button, useTheme, Avatar, Divider, Surface, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert, Platform, Pressable } from 'react-native';
+import { Text, List, Button, useTheme, Avatar, Divider, Surface, ActivityIndicator, Portal } from 'react-native-paper';
 import { router } from 'expo-router';
 import { removeToken } from '../../../src/api/http';
 import { useQuery } from '@tanstack/react-query';
 import http from '../../../src/api/http';
 import { ENDPOINTS } from '../../../src/api/endpoints';
-import { LogOut, MapPin, User, Settings, Shield, ChevronRight } from 'lucide-react-native';
+import { Check, ChevronRight, Languages, LogOut, MapPin, Settings, Shield, X } from 'lucide-react-native';
+import i18n, { t, changeLanguage } from '../../../src/i18n';
 
 export default function ProfileScreen() {
     const theme = useTheme();
+    const [languageDialogVisible, setLanguageDialogVisible] = React.useState(false);
 
     const { data: profile, isLoading } = useQuery({
         queryKey: ['me'],
@@ -22,6 +24,20 @@ export default function ProfileScreen() {
     const handleLogout = async () => {
         await removeToken();
         router.replace('/(auth)/login');
+    };
+
+    const applyLanguageChange = async (lang: string) => {
+        setLanguageDialogVisible(false);
+        await changeLanguage(lang);
+        if (Platform.OS === 'web') {
+            window.location.reload();
+        } else {
+            Alert.alert(
+                t('profile.change_lang_title'),
+                t('profile.change_lang_restart'),
+                [{ text: 'OK' }]
+            );
+        }
     };
 
     if (isLoading) {
@@ -39,7 +55,7 @@ export default function ProfileScreen() {
                     <Surface style={styles.avatarWrapper} elevation={0}>
                         <Avatar.Text
                             size={90}
-                            label={profile?.name?.substring(0, 2).toUpperCase() || 'U'}
+                            label={profile?.name?.substring(0, 2).toUpperCase() || 'US'}
                             style={{ backgroundColor: theme.colors.primaryContainer }}
                             labelStyle={{ color: theme.colors.primary, fontWeight: '800' }}
                         />
@@ -51,7 +67,7 @@ export default function ProfileScreen() {
                         {profile?.roles?.map((role: string) => (
                             <Surface key={role} style={[styles.roleBadge, { backgroundColor: theme.colors.primary + '10' }]} elevation={0}>
                                 <Text variant="labelSmall" style={[styles.roleText, { color: theme.colors.primary }]}>
-                                    {role.toUpperCase()}
+                                    {role === 'Customer' ? t('profile.customer') : role}
                                 </Text>
                             </Surface>
                         ))}
@@ -59,30 +75,31 @@ export default function ProfileScreen() {
                 </View>
 
                 <View style={styles.menuSection}>
-                    <Text variant="titleMedium" style={styles.sectionTitle}>Account</Text>
+                    <Text variant="titleMedium" style={styles.sectionTitle}>{t('profile.title')}</Text>
                     <Surface style={styles.menuSurface} elevation={0}>
                         <List.Item
-                            title="My Addresses"
-                            description="Save and manage delivery locations"
-                            left={props => <View style={styles.menuIcon}><MapPin size={22} color={theme.colors.primary} /></View>}
-                            right={props => <ChevronRight size={18} color="#D0D0D0" style={{ alignSelf: 'center' }} />}
+                            title={t('profile.my_addresses')}
+                            description={t('profile.manage_addresses')}
+                            left={() => <View style={styles.menuIcon}><MapPin size={22} color={theme.colors.primary} /></View>}
+                            right={() => <ChevronRight size={18} color="#D0D0D0" style={{ alignSelf: 'center' }} />}
                             onPress={() => router.push('/(tabs)/profile/addresses')}
                             titleStyle={styles.menuTitle}
                         />
                         <Divider style={styles.menuDivider} />
                         <List.Item
-                            title="Settings"
-                            description="App preferences and notifications"
-                            left={props => <View style={styles.menuIcon}><Settings size={22} color="#757575" /></View>}
-                            right={props => <ChevronRight size={18} color="#D0D0D0" style={{ alignSelf: 'center' }} />}
+                            title={t('profile.settings')}
+                            description={t('profile.settings_desc')}
+                            left={() => <View style={styles.menuIcon}><Settings size={22} color="#757575" /></View>}
+                            right={() => <ChevronRight size={18} color="#D0D0D0" style={{ alignSelf: 'center' }} />}
+                            onPress={() => setLanguageDialogVisible(true)}
                             titleStyle={styles.menuTitle}
                         />
                         <Divider style={styles.menuDivider} />
                         <List.Item
-                            title="Legal & Privacy"
-                            description="Terms, privacy and safety"
-                            left={props => <View style={styles.menuIcon}><Shield size={22} color="#757575" /></View>}
-                            right={props => <ChevronRight size={18} color="#D0D0D0" style={{ alignSelf: 'center' }} />}
+                            title={t('profile.terms_privacy')}
+                            description={t('profile.terms_privacy_desc')}
+                            left={() => <View style={styles.menuIcon}><Shield size={22} color="#757575" /></View>}
+                            right={() => <ChevronRight size={18} color="#D0D0D0" style={{ alignSelf: 'center' }} />}
                             titleStyle={styles.menuTitle}
                         />
                     </Surface>
@@ -96,29 +113,115 @@ export default function ProfileScreen() {
                     contentStyle={styles.logoutContent}
                     buttonColor={theme.colors.error}
                 >
-                    Log Out
+                    {t('profile.logout')}
                 </Button>
 
                 <View style={styles.footer}>
                     <Text variant="labelSmall" style={styles.version}>CITYORDERS v1.0.0</Text>
                 </View>
             </ScrollView>
+
+            <Portal>
+                {languageDialogVisible && (
+                    <View style={styles.modalOverlay}>
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Close language selector"
+                            style={StyleSheet.absoluteFill}
+                            onPress={() => setLanguageDialogVisible(false)}
+                        />
+                        <Surface style={styles.languageModal} elevation={4}>
+                            <View style={styles.modalHeader}>
+                                <View style={[styles.modalIcon, { backgroundColor: theme.colors.primaryContainer }]}>
+                                    <Languages size={22} color={theme.colors.primary} />
+                                </View>
+                                <View style={styles.modalTitleWrap}>
+                                    <Text variant="titleMedium" style={styles.modalTitle}>
+                                        {t('profile.change_lang_title')}
+                                    </Text>
+                                    <Text variant="bodySmall" style={styles.modalSubtitle}>
+                                        {t('profile.change_lang_message')}
+                                    </Text>
+                                </View>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Close"
+                                    onPress={() => setLanguageDialogVisible(false)}
+                                    style={styles.closeButton}
+                                >
+                                    <X size={18} color="#757575" />
+                                </Pressable>
+                            </View>
+
+                            <View style={styles.languageList}>
+                                <LanguageOption
+                                    label="العربية"
+                                    subLabel="Arabic"
+                                    selected={i18n.locale === 'ar'}
+                                    onPress={() => applyLanguageChange('ar')}
+                                    color={theme.colors.primary}
+                                />
+                                <LanguageOption
+                                    label="English"
+                                    subLabel="English"
+                                    selected={i18n.locale === 'en'}
+                                    onPress={() => applyLanguageChange('en')}
+                                    color={theme.colors.primary}
+                                />
+                            </View>
+                        </Surface>
+                    </View>
+                )}
+            </Portal>
         </View>
+    );
+}
+
+function LanguageOption({
+    label,
+    subLabel,
+    selected,
+    onPress,
+    color,
+}: {
+    label: string;
+    subLabel: string;
+    selected: boolean;
+    onPress: () => void;
+    color: string;
+}) {
+    return (
+        <Pressable
+            accessibilityRole="button"
+            onPress={onPress}
+            style={[styles.languageOption, selected && { borderColor: color, backgroundColor: `${color}12` }]}
+        >
+            <View>
+                <Text variant="titleSmall" style={styles.languageLabel}>{label}</Text>
+                <Text variant="bodySmall" style={styles.languageSubLabel}>{subLabel}</Text>
+            </View>
+            <View style={[styles.checkCircle, selected && { backgroundColor: color, borderColor: color }]}>
+                {selected && <Check size={14} color="#FFFFFF" />}
+            </View>
+        </Pressable>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F8FAFC',
     },
     centered: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F8FAFC',
     },
     scrollContent: {
+        width: '100%',
+        maxWidth: 760,
+        alignSelf: 'center',
         padding: 20,
         paddingBottom: 40,
     },
@@ -126,11 +229,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 32,
         marginTop: 20,
+        borderRadius: 24,
+        paddingVertical: 26,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     avatarWrapper: {
         padding: 4,
         borderRadius: 50,
-        backgroundColor: '#F8F8F8',
+        backgroundColor: '#FFF7ED',
     },
     name: {
         fontWeight: '900',
@@ -165,9 +273,9 @@ const styles = StyleSheet.create({
     },
     menuSurface: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
+        borderRadius: 22,
         borderWidth: 1,
-        borderColor: '#F0F0F0',
+        borderColor: '#E2E8F0',
         overflow: 'hidden',
     },
     menuIcon: {
@@ -180,7 +288,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     menuDivider: {
-        backgroundColor: '#FAFAFA',
+        backgroundColor: '#F1F5F9',
         marginLeft: 56,
     },
     logoutBtn: {
@@ -198,5 +306,84 @@ const styles = StyleSheet.create({
         color: '#D0D0D0',
         fontWeight: '700',
         letterSpacing: 2,
+    },
+    modalOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(15, 23, 42, 0.42)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    languageModal: {
+        width: '100%',
+        maxWidth: 430,
+        borderRadius: 18,
+        backgroundColor: '#FFFFFF',
+        padding: 18,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+        marginBottom: 18,
+    },
+    modalIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalTitleWrap: {
+        flex: 1,
+    },
+    modalTitle: {
+        fontWeight: '900',
+        color: '#212121',
+    },
+    modalSubtitle: {
+        color: '#757575',
+        marginTop: 3,
+        lineHeight: 18,
+    },
+    closeButton: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F6F6F6',
+    },
+    languageList: {
+        gap: 10,
+    },
+    languageOption: {
+        minHeight: 64,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#EEEEEE',
+        backgroundColor: '#FAFAFA',
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    languageLabel: {
+        fontWeight: '900',
+        color: '#212121',
+    },
+    languageSubLabel: {
+        color: '#757575',
+        marginTop: 2,
+    },
+    checkCircle: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#D6D6D6',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

@@ -4,8 +4,10 @@ import { Link } from 'react-router-dom';
 import { Search, Eye, AlertCircle, Calendar, Clock, AlertTriangle, CheckCircle2, UserX, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SubscriptionState, MerchantSubscriptionRow } from '@/types/admin';
+import { useTranslation } from '@/context/LanguageContext';
 
 export const SubscriptionsMonitoringPage: React.FC = () => {
+    const { t, language } = useTranslation();
     const [filter, setFilter] = useState('expiringSoon');
     const [days, setDays] = useState(7);
     const [search, setSearch] = useState('');
@@ -23,39 +25,46 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
             None: "bg-slate-100 text-slate-700 border-slate-200"
         };
         const icons = {
-            Active: <CheckCircle2 className="w-3 h-3 mr-1" />,
-            Grace: <Clock className="w-3 h-3 mr-1" />,
-            Expired: <AlertTriangle className="w-3 h-3 mr-1" />,
+            Active: <CheckCircle2 className={cn("w-3 h-3", language === 'ar' ? "ml-1" : "mr-1")} />,
+            Grace: <Clock className={cn("w-3 h-3", language === 'ar' ? "ml-1" : "mr-1")} />,
+            Expired: <AlertTriangle className={cn("w-3 h-3", language === 'ar' ? "ml-1" : "mr-1")} />,
             None: null
+        };
+
+        const stateLabel = {
+            Active: t('promos.status.active'),
+            Grace: t('subs.graceState'),
+            Expired: t('promos.status.expired'),
+            None: ''
         };
 
         return (
             <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border", styles[state])}>
                 {icons[state]}
-                {state}
+                {stateLabel[state]}
             </span>
         );
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 text-start">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold">Subscriptions Monitoring</h1>
-                    <p className="text-slate-500 mt-1">Monitor merchant subscription states and upcoming expirations.</p>
+                    <h1 className="text-3xl font-bold">{t('subs.title')}</h1>
+                    <p className="text-slate-500 mt-1">{t('subs.subtitle')}</p>
                 </div>
             </div>
 
             {/* Filters & Search */}
             <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 space-y-4">
                 <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                    <div className="flex bg-slate-100 p-1 rounded-lg flex-wrap">
                         {[
-                            { id: 'expiringSoon', label: 'Expiring Soon' },
-                            { id: 'grace', label: 'In Grace' },
-                            { id: 'expired', label: 'Expired' },
-                            { id: 'active', label: 'Active' },
-                            { id: 'deactivated', label: 'Deactivated' },
+                            { id: 'expiringSoon', label: t('subs.filter.expiring') },
+                            { id: 'grace', label: t('subs.filter.ingrace') },
+                            { id: 'expired', label: t('subs.filter.expired') },
+                            { id: 'active', label: t('subs.filter.active') },
+                            { id: 'deactivated', label: t('subs.filter.deactivated') },
                         ].map((tab) => (
                             <button
                                 key={tab.id}
@@ -74,28 +83,31 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
 
                     {filter === 'expiringSoon' && (
                         <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-slate-600">Threshold:</label>
+                            <label className="text-sm font-medium text-slate-600">{t('subs.daysThreshold')}</label>
                             <select
                                 value={days}
                                 onChange={(e) => setDays(Number(e.target.value))}
-                                className="bg-white border border-slate-200 rounded-md px-2 py-1.5 text-sm"
+                                className="bg-white border border-slate-200 rounded-md px-2 py-1.5 text-sm bg-no-repeat bg-right"
                             >
-                                <option value={3}>3 Days</option>
-                                <option value={7}>7 Days</option>
-                                <option value={14}>14 Days</option>
-                                <option value={30}>30 Days</option>
+                                <option value={3}>{t('plans.days').replace('{days}', '3')}</option>
+                                <option value={7}>{t('plans.days').replace('{days}', '7')}</option>
+                                <option value={14}>{t('plans.days').replace('{days}', '14')}</option>
+                                <option value={30}>{t('plans.days').replace('{days}', '30')}</option>
                             </select>
                         </div>
                     )}
 
                     <div className="flex-1 min-w-[200px] relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Search className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400", language === 'ar' ? "right-3" : "left-3")} />
                         <input
                             type="text"
-                            placeholder="Search merchant, email, brand..."
+                            placeholder={t('subs.search')}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            className={cn(
+                                "w-full py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20",
+                                language === 'ar' ? "pl-4 pr-10" : "pl-10 pr-4"
+                            )}
                         />
                     </div>
                 </div>
@@ -117,14 +129,14 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
                 </div>
             ) : (
                 <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-                    <table className="w-full text-left">
+                    <table className="w-full text-start">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Merchant</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Brand</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-center">Term / Expiry</th>
-                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Actions</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-start">{t('subs.merchant')}</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-start">{t('subs.brand')}</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-start">{t('subs.status')}</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-center">{t('subs.termExpiry')}</th>
+                                <th className={cn("px-6 py-3 text-xs font-semibold text-slate-500 uppercase", language === 'ar' ? "text-left" : "text-right")}>{t('subs.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
@@ -139,7 +151,7 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
                             ) : subscriptions?.length ? (
                                 subscriptions.map((sub: MerchantSubscriptionRow) => (
                                     <tr key={sub.userId} className="hover:bg-slate-50 transition-colors group text-sm">
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 text-start">
                                             <div className="flex items-center gap-3">
                                                 <div className={cn(
                                                     "w-2 h-2 rounded-full shrink-0 shadow-sm",
@@ -151,7 +163,7 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 text-start">
                                             <div className="flex flex-col">
                                                 <div className="font-medium text-slate-700">{sub.brandName}</div>
                                                 <div className="text-[11px] text-slate-400 mt-1">{sub.brandPhone}</div>
@@ -166,11 +178,11 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-4 text-start">
                                             <div className="flex items-center gap-2">
                                                 {!sub.isActive ? (
                                                     <span className="bg-rose-50 text-rose-600 text-[10px] font-bold px-1.5 py-0.5 rounded border border-rose-100 uppercase">
-                                                        Deactivated
+                                                        {t('subs.deactivated')}
                                                     </span>
                                                 ) : (
                                                     <StatusBadge state={sub.state} />
@@ -180,8 +192,8 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex flex-col items-center">
                                                 <div className="text-slate-600 font-medium flex items-center justify-center">
-                                                    <Calendar className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
-                                                    {new Date(sub.endDate).toLocaleDateString()}
+                                                    <Calendar className={cn("w-3.5 h-3.5 text-slate-400", language === 'ar' ? "ml-1.5" : "mr-1.5")} />
+                                                    {new Date(sub.endDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
                                                 </div>
                                                 <div className={cn(
                                                     "text-[10px] mt-1 font-bold px-2 py-0.5 rounded-full inline-block",
@@ -189,18 +201,23 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
                                                         sub.daysRemaining <= 7 ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-600"
                                                 )}>
                                                     {sub.daysRemaining <= 0 ? (
-                                                        sub.state === 'Grace' ? 'GRACE PERIOD' : 'EXPIRED'
-                                                    ) : `${sub.daysRemaining} days left`}
+                                                        sub.state === 'Grace' ? t('subs.gracePeriod') : t('subs.expired')
+                                                    ) : t('subs.daysLeft').replace('{days}', sub.daysRemaining.toString())}
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
+                                        <td className={cn("px-6 py-4", language === 'ar' ? "text-left" : "text-right")}>
+                                            <div className={cn("flex items-center gap-2", language === 'ar' ? "justify-start" : "justify-end")}>
                                                 <button
                                                     onClick={() => {
-                                                        const action = sub.isActive ? 'Deactivate' : 'Activate';
-                                                        if (confirm(`${action} merchant ${sub.userName}?`)) {
-                                                            sub.isActive ? deactivate.mutate(sub.userId) : activate.mutate(sub.userId);
+                                                        const action = sub.isActive ? t('subs.deactivate') : t('subs.activate');
+                                                        const msg = t('subs.confirmToggle').replace('{action}', action).replace('{name}', sub.userName);
+                                                        if (confirm(msg)) {
+                                                            if (sub.isActive) {
+                                                                    deactivate.mutate(sub.userId);
+                                                            } else {
+                                                                    activate.mutate(sub.userId);
+                                                            }
                                                         }
                                                     }}
                                                     className={cn(
@@ -209,7 +226,7 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
                                                             ? "text-slate-400 hover:text-red-600 hover:bg-red-50"
                                                             : "text-blue-600 bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-200"
                                                     )}
-                                                    title={sub.isActive ? "Deactivate Merchant" : "Reactivate Merchant"}
+                                                    title={sub.isActive ? t('subs.deactivateMerchant') : t('subs.activateMerchant')}
                                                     disabled={activate.isPending || deactivate.isPending}
                                                 >
                                                     {sub.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
@@ -229,7 +246,7 @@ export const SubscriptionsMonitoringPage: React.FC = () => {
                             ) : (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic">
-                                        No merchants found matching the current filters.
+                                        {t('subs.noSubscriptions')}
                                     </td>
                                 </tr>
                             )}

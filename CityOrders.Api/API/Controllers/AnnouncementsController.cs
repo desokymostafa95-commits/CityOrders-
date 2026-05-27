@@ -73,28 +73,31 @@ namespace CityOrders.Api.API.Controllers
             return NoContent();
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet("active")]
         public async Task<ActionResult<IEnumerable<GlobalAnnouncement>>> GetActiveAnnouncements()
         {
             var now = DateTime.UtcNow;
             
-            // Build a list of all audiences this user belongs to
             var audiences = new List<AnnouncementTarget> { AnnouncementTarget.All };
-            
-            // Check roles using claims directly in case IsInRole fails due to claim mapping issues
-            var userRoles = User.Claims
-                .Where(c => c.Type == ClaimTypes.Role || c.Type == "role")
-                .Select(c => c.Value)
-                .ToList();
 
-            if (User.IsInRole("Customer") || userRoles.Contains("Customer")) audiences.Add(AnnouncementTarget.Customer);
-            if (User.IsInRole("Merchant") || userRoles.Contains("Merchant")) audiences.Add(AnnouncementTarget.Merchant);
-            // Admins can see everything (Merchant + Customer + All) for monitoring
-            if (User.IsInRole("Admin") || userRoles.Contains("Admin")) 
+            if (User.Identity?.IsAuthenticated == true)
             {
-                if (!audiences.Contains(AnnouncementTarget.Customer)) audiences.Add(AnnouncementTarget.Customer);
-                if (!audiences.Contains(AnnouncementTarget.Merchant)) audiences.Add(AnnouncementTarget.Merchant);
+                // Check roles using claims directly in case IsInRole fails due to claim mapping issues
+                var userRoles = User.Claims
+                    .Where(c => c.Type == ClaimTypes.Role || c.Type == "role")
+                    .Select(c => c.Value)
+                    .ToList();
+
+                if (User.IsInRole("Customer") || userRoles.Contains("Customer")) audiences.Add(AnnouncementTarget.Customer);
+                if (User.IsInRole("Merchant") || userRoles.Contains("Merchant")) audiences.Add(AnnouncementTarget.Merchant);
+
+                // Admins can see everything (Merchant + Customer + All) for monitoring
+                if (User.IsInRole("Admin") || userRoles.Contains("Admin"))
+                {
+                    if (!audiences.Contains(AnnouncementTarget.Customer)) audiences.Add(AnnouncementTarget.Customer);
+                    if (!audiences.Contains(AnnouncementTarget.Merchant)) audiences.Add(AnnouncementTarget.Merchant);
+                }
             }
 
             return await _context.Announcements

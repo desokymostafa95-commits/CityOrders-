@@ -18,6 +18,7 @@ namespace CityOrders.Api.Domain.Entities
         public CustomerProfile? CustomerProfile { get; set; }
         public MerchantProfile? MerchantProfile { get; set; }
         public DeliveryProfile? DeliveryProfile { get; set; }
+        public DeliveryOffice? ManagedDeliveryOffice { get; set; }
 
         public ICollection<Brand> Brands { get; set; } = new List<Brand>();
         public ICollection<CustomerAddress> CustomerAddresses { get; set; } = new List<CustomerAddress>();

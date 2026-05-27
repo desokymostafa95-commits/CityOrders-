@@ -23,8 +23,8 @@ import {
     MapPin
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import { Tag, Save, Loader2, Store } from 'lucide-react';
+import { useTranslation } from '@/context/LanguageContext';
 
 const getServerImageUrl = (path?: string) => {
     if (!path) return null;
@@ -40,6 +40,7 @@ interface Category {
 }
 
 const MerchantCategoriesSection: React.FC<{ merchantId: number; currentCategoryIds: number[] }> = ({ merchantId, currentCategoryIds }) => {
+    const { t, language } = useTranslation();
     const { data: allCategories, isLoading: categoriesLoading } = useMasterCategories();
     const updateMutation = useUpdateMerchantCategories();
     const [selectedIds, setSelectedIds] = React.useState<number[]>(currentCategoryIds);
@@ -62,10 +63,10 @@ const MerchantCategoriesSection: React.FC<{ merchantId: number; currentCategoryI
     };
 
     return (
-        <div className="bg-white p-6 rounded-xl border border-slate-200">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 text-start">
             <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Tag className="w-4 h-4 text-slate-400" />
-                Manage Categories
+                {t('subs.details.manageCategories')}
             </h3>
 
             {categoriesLoading ? (
@@ -82,7 +83,7 @@ const MerchantCategoriesSection: React.FC<{ merchantId: number; currentCategoryI
                                 onChange={() => toggleCategory(cat.id)}
                                 className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                             />
-                            <span className="ml-3 text-sm text-slate-600 group-hover:text-slate-900 transition-colors">
+                            <span className={cn("text-sm text-slate-600 group-hover:text-slate-900 transition-colors", language === 'ar' ? "mr-3" : "ml-3")}>
                                 {cat.name}
                             </span>
                         </label>
@@ -96,16 +97,17 @@ const MerchantCategoriesSection: React.FC<{ merchantId: number; currentCategoryI
                 className="mt-6 w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-400 transition-all"
             >
                 {updateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                Save Categories
+                {t('subs.details.saveCategories')}
             </button>
         </div>
     );
 };
 
 export const SubscriptionDetailsPage: React.FC = () => {
+    const { t, language } = useTranslation();
     const { merchantId } = useParams();
     const navigate = useNavigate();
-    const { data: details, isLoading, error, refetch } = useSubscriptionDetails(merchantId);
+    const { data: details, isLoading, error } = useSubscriptionDetails(merchantId);
 
     const extendMutation = useExtendSubscription();
     const expireMutation = useForceExpire();
@@ -117,7 +119,7 @@ export const SubscriptionDetailsPage: React.FC = () => {
     const [showConfirmExtend, setShowConfirmExtend] = useState(false);
     const [showConfirmExpire, setShowConfirmExpire] = useState(false);
 
-    if (isLoading) return <div className="p-12 text-center text-slate-500 animate-pulse font-medium">Loading merchant subscription details...</div>;
+    if (isLoading) return <div className="p-12 text-center text-slate-500 animate-pulse font-medium">{t('subs.details.loadingDetails')}</div>;
 
     if (error) return (
         <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center max-w-2xl mx-auto mt-8">
@@ -135,7 +137,7 @@ export const SubscriptionDetailsPage: React.FC = () => {
         </div>
     );
 
-    if (!details) return <div>Merchant not found.</div>;
+    if (!details) return <div className="p-8 text-center">{t('subs.details.merchantNotFound')}</div>;
 
     const handleExtend = () => {
         if (!merchantId) return;
@@ -155,14 +157,21 @@ export const SubscriptionDetailsPage: React.FC = () => {
         });
     };
 
+    const stateLabel: any = {
+        Active: t('promos.status.active'),
+        Grace: t('subs.details.graceState'),
+        Expired: t('promos.status.expired'),
+        None: ''
+    };
+
     return (
-        <div className="space-y-8 pb-12">
+        <div className="space-y-8 pb-12 text-start">
             <button
                 onClick={() => navigate(-1)}
                 className="flex items-center text-slate-500 hover:text-slate-900 transition-colors group"
             >
-                <ArrowLeft className="w-4 h-4 mr-1.5 group-hover:-translate-x-1 transition-transform" />
-                Back to monitoring
+                <ArrowLeft className={cn("w-4 h-4 group-hover:-translate-x-1 transition-transform", language === 'ar' ? "ml-1.5 rotate-180" : "mr-1.5")} />
+                {t('subs.details.back')}
             </button>
 
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -210,28 +219,27 @@ export const SubscriptionDetailsPage: React.FC = () => {
                             details.state === 'Grace' ? "bg-orange-50 text-orange-700 border-orange-200" :
                                 "bg-red-50 text-red-700 border-red-200"
                 )}>
-                    {!details.isActive ? "Deactivated" : `${details.state} (${details.daysRemaining}d left)`}
+                    {!details.isActive ? t('subs.details.deactivated') : `${stateLabel[details.state as string] || details.state} (${t('subs.daysLeft').replace('{days}', details.daysRemaining.toString())})`}
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Details Card */}
                 <div className="lg:col-span-2 space-y-8">
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="p-6 border-b border-slate-100 flex items-center gap-2">
                             <History className="w-5 h-5 text-indigo-500" />
-                            <h2 className="text-lg font-bold">Subscription Info</h2>
+                            <h2 className="text-lg font-bold">{t('subs.details.info')}</h2>
                         </div>
                         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Plan</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('subs.details.plan')}</label>
                                 <p className="text-lg font-medium text-slate-900 mt-0.5">{details.planName}</p>
                                 {details.isTrial && (
-                                    <span className="inline-flex mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">Trial Mode</span>
+                                    <span className="inline-flex mt-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">{t('subs.details.typeTrial')}</span>
                                 )}
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('subs.status')}</label>
                                 <div className="mt-1 flex items-center gap-2">
                                     <div className={cn(
                                         "w-2.5 h-2.5 rounded-full",
@@ -239,27 +247,26 @@ export const SubscriptionDetailsPage: React.FC = () => {
                                             details.state === 'Active' ? "bg-emerald-500" :
                                                 details.state === 'Grace' ? "bg-orange-500" : "bg-red-500"
                                     )} />
-                                    <span className="font-medium">{!details.isActive ? "Deactivated" : details.state}</span>
+                                    <span className="font-medium">{!details.isActive ? t('subs.details.deactivated') : stateLabel[details.state as string] || details.state}</span>
                                 </div>
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider italic">Start Date</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('subs.details.startDate')}</label>
                                 <p className="text-slate-700 mt-0.5 flex items-center">
-                                    <Calendar className="w-4 h-4 mr-2 text-slate-400" />
-                                    {new Date(details.startDate).toLocaleDateString()}
+                                    <Calendar className={cn("w-4 h-4 text-slate-400", language === 'ar' ? "ml-2" : "mr-2")} />
+                                    {new Date(details.startDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
                                 </p>
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Renewal Date</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('subs.details.endDate')}</label>
                                 <p className="text-slate-700 mt-0.5 flex items-center">
-                                    <Clock className="w-4 h-4 mr-2 text-slate-400" />
-                                    {new Date(details.endDate).toLocaleDateString()}
+                                    <Clock className={cn("w-4 h-4 text-slate-400", language === 'ar' ? "ml-2" : "mr-2")} />
+                                    {new Date(details.endDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Admin Actions Section */}
                     <div className="bg-slate-900 text-white rounded-xl shadow-lg p-6 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-8 opacity-10 -rotate-12 transform scale-150 group-hover:rotate-0 transition-transform duration-700">
                             <ShieldAlert className="w-32 h-32" />
@@ -267,12 +274,12 @@ export const SubscriptionDetailsPage: React.FC = () => {
 
                         <h2 className="text-xl font-bold flex items-center gap-3 mb-6">
                             <ShieldAlert className="w-6 h-6 text-orange-400" />
-                            Admin Actions
+                            {t('subs.details.actions')}
                         </h2>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 relative z-10">
                             <div className="space-y-4">
-                                <h3 className="font-bold text-slate-300">Extend Subscription</h3>
+                                <h3 className="font-bold text-slate-300">{t('subs.details.extend')}</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {[3, 7, 30].map(d => (
                                         <button
@@ -283,7 +290,7 @@ export const SubscriptionDetailsPage: React.FC = () => {
                                                 extendDays === d ? "bg-indigo-600 border-indigo-400 text-white" : "border-slate-700 text-slate-400 hover:text-white"
                                             )}
                                         >
-                                            +{d} Days
+                                            +{language === 'ar' ? `${d} أيام` : `${d} Days`}
                                         </button>
                                     ))}
                                     <div className="relative">
@@ -296,7 +303,7 @@ export const SubscriptionDetailsPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <textarea
-                                    placeholder="Reason for extension (internal notes)..."
+                                    placeholder={t('subs.details.extensionReason')}
                                     value={reason}
                                     onChange={(e) => setReason(e.target.value)}
                                     className="w-full bg-slate-800 border border-slate-700 rounded-md p-3 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 h-20"
@@ -305,43 +312,47 @@ export const SubscriptionDetailsPage: React.FC = () => {
                                     onClick={() => setShowConfirmExtend(true)}
                                     className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
                                 >
-                                    <Plus className="w-4 h-4" /> Apply Extension
+                                    <Plus className="w-4 h-4" /> {t('subs.details.extendBtn')}
                                 </button>
                             </div>
 
                             <div className="space-y-4 flex flex-col justify-between">
                                 <div>
-                                    <h3 className="font-bold text-slate-300">Force Expiration</h3>
+                                    <h3 className="font-bold text-slate-300">{t('subs.details.forceExpiration')}</h3>
                                     <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                                        Immediately ends the current subscription period and puts the merchant into 'None' state.
-                                        Use only for policy violations or manual overrides.
+                                        {t('subs.details.forceExpirationDesc')}
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => setShowConfirmExpire(true)}
                                     className="w-full py-2.5 bg-red-900/50 hover:bg-red-800 border border-red-700/50 text-red-200 rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
                                 >
-                                    <RotateCcw className="w-4 h-4" /> Force Expire Now
+                                    <RotateCcw className="w-4 h-4" /> {t('subs.details.forceExpireBtn')}
                                 </button>
                             </div>
 
                             <div className="space-y-4 flex flex-col justify-between">
                                 <div>
-                                    <h3 className="font-bold text-slate-300">{details.isActive ? 'Deactivate' : 'Activate'} Merchant</h3>
+                                    <h3 className="font-bold text-slate-300">{details.isActive ? t('subs.details.deactivateMerchant') : t('subs.details.activateMerchant')}</h3>
                                     <p className="text-xs text-slate-500 mt-2 leading-relaxed">
                                         {details.isActive
-                                            ? "Temporarily disable the merchant's account. This will block all API access and hide their brand from customers."
-                                            : "Restore the merchant's account access. Their existing subscription status will be maintained."
+                                            ? t('subs.details.deactivateDesc')
+                                            : t('subs.details.activateDesc')
                                         }
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => {
                                         const action = details.isActive ? 'Deactivate' : 'Activate';
-                                        if (confirm(`${action} merchant ${details.userName}?`)) {
-                                            details.isActive
-                                                ? deactivateMutation.mutate(Number(merchantId))
-                                                : activateMutation.mutate(Number(merchantId));
+                                        const msg = t('subs.details.confirmToggle')
+                                            .replace('{action}', details.isActive ? t('subs.deactivate') : t('subs.activate'))
+                                            .replace('{name}', details.userName);
+                                        if (confirm(msg)) {
+                                            if (details.isActive) {
+                                                deactivateMutation.mutate(Number(merchantId));
+                                            } else {
+                                                activateMutation.mutate(Number(merchantId));
+                                            }
                                         }
                                     }}
                                     className={cn(
@@ -352,32 +363,31 @@ export const SubscriptionDetailsPage: React.FC = () => {
                                     )}
                                     disabled={activateMutation.isPending || deactivateMutation.isPending}
                                 >
-                                    {details.isActive ? <ShieldAlert className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
-                                    {details.isActive ? 'Deactivate Merchant' : 'Activate Merchant'}
+                                    <ShieldAlert className="w-4 h-4" />
+                                    {details.isActive ? t('subs.details.deactivateMerchant') : t('subs.details.activateMerchant')}
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Sidebar Info */}
                 <div className="space-y-6">
                     <div className="bg-white p-6 rounded-xl border border-slate-200">
                         <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <Info className="w-4 h-4 text-slate-400" />
-                            Overview
+                            {t('subs.details.overview')}
                         </h3>
                         <div className="space-y-4">
                             <div className="flex justify-between text-sm py-2 border-b border-slate-50">
-                                <span className="text-slate-500">Days Remaining</span>
+                                <span className="text-slate-500">{t('subs.details.daysRemaining')}</span>
                                 <span className={cn("font-bold", details.daysRemaining < 0 ? "text-red-500" : "text-slate-900")}>
-                                    {details.daysRemaining} Days
+                                    {t('subs.daysLeft').replace('{days}', details.daysRemaining.toString())}
                                 </span>
                             </div>
                             <div className="flex justify-between text-sm py-2 border-b border-slate-50">
-                                <span className="text-slate-500">Grace Status</span>
+                                <span className="text-slate-500">{t('subs.details.graceStatus')}</span>
                                 <span className="font-medium text-slate-900">
-                                    {details.graceEndDate ? 'Enabled' : 'Disabled'}
+                                    {details.graceEndDate ? t('subs.details.graceEnabled') : t('subs.details.graceDisabled')}
                                 </span>
                             </div>
                         </div>
@@ -386,30 +396,30 @@ export const SubscriptionDetailsPage: React.FC = () => {
                     <div className="bg-white p-6 rounded-xl border border-slate-200">
                         <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-slate-400" />
-                            Contact & Location
+                            {t('subs.details.contactLocation')}
                         </h3>
                         <div className="space-y-4">
                             <div>
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Phone</label>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('subs.details.phone')}</label>
                                 <p className="text-sm font-medium text-slate-900 mt-0.5">{details.brandPhone || 'N/A'}</p>
                             </div>
                             <div>
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Address</label>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('subs.details.address')}</label>
                                 <p className="text-sm text-slate-600 mt-0.5 leading-relaxed">{details.brandAddress || 'No address provided'}</p>
                             </div>
                             {details.lat && details.lng && (
                                 <div className="pt-4 border-t border-slate-50">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">GPS Coordinates</label>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('subs.details.gpsCoordinates')}</label>
                                     <p className="text-xs font-mono text-slate-500 mt-1">
                                         {details.lat.toFixed(6)}, {details.lng.toFixed(6)}
                                     </p>
                                     <a
-                                        href={`https://www.google.com/maps/search/?api=1&query=${details.lat},${details.lng}`}
+                                        href={`https://www.openstreetmap.org/?mlat=${details.lat}&mlon=${details.lng}#map=17/${details.lat}/${details.lng}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="mt-3 block text-center py-2 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
                                     >
-                                        Open in Google Maps
+                                        {t('subs.details.openMap')}
                                     </a>
                                 </div>
                             )}
@@ -420,65 +430,62 @@ export const SubscriptionDetailsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modals */}
-            {
-                showConfirmExtend && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-in zoom-in-95 duration-200">
-                            <h3 className="text-2xl font-bold text-slate-900 mb-2">Confirm Extension</h3>
-                            <p className="text-slate-600 mb-6">
-                                You are about to extend {details.brandName}'s subscription by <strong className="text-indigo-600">{extendDays} days</strong>.
-                            </p>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setShowConfirmExtend(false)}
-                                    className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleExtend}
-                                    disabled={extendMutation.isPending}
-                                    className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 disabled:opacity-50"
-                                >
-                                    {extendMutation.isPending ? 'Applying...' : 'Confirm'}
-                                </button>
-                            </div>
+            {showConfirmExtend && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-in zoom-in-95 duration-200">
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2">{t('subs.details.confirmExtension')}</h3>
+                        <p className="text-slate-600 mb-6">
+                            {language === 'ar'
+                                ? `أنت على وشك تمديد اشتراك ${details.brandName} بمقدار ${extendDays} أيام.`
+                                : `You are about to extend ${details.brandName}'s subscription by ${extendDays} days.`}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowConfirmExtend(false)}
+                                className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition-colors"
+                            >
+                                {t('roles.cancel')}
+                            </button>
+                            <button
+                                onClick={handleExtend}
+                                disabled={extendMutation.isPending}
+                                className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 disabled:opacity-50"
+                            >
+                                {extendMutation.isPending ? t('subs.details.applying') : t('subs.details.confirm')}
+                            </button>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
 
-            {
-                showConfirmExpire && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border-4 border-red-50">
-                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                                <RotateCcw className="w-8 h-8 text-red-600" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-slate-900 mb-2 text-center">Danger Zone</h3>
-                            <p className="text-slate-600 mb-8 text-center">
-                                Are you absolutely sure you want to <strong>force expire</strong> this subscription? This will disable the merchant's active features immediately.
-                            </p>
-                            <div className="flex flex-col gap-3">
-                                <button
-                                    onClick={handleForceExpire}
-                                    disabled={expireMutation.isPending}
-                                    className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-100 disabled:opacity-50"
-                                >
-                                    {expireMutation.isPending ? 'Processing...' : 'Yes, Force Expire'}
-                                </button>
-                                <button
-                                    onClick={() => setShowConfirmExpire(false)}
-                                    className="w-full py-3 text-slate-400 font-medium hover:text-slate-600 transition-colors"
-                                >
-                                    Nevermind, go back
-                                </button>
-                            </div>
+            {showConfirmExpire && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border-4 border-red-50">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                            <RotateCcw className="w-8 h-8 text-red-600" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-900 mb-2 text-center">{t('subs.details.dangerZone')}</h3>
+                        <p className="text-slate-600 mb-8 text-center">
+                            {t('subs.details.forceExpireWarning')}
+                        </p>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={handleForceExpire}
+                                disabled={expireMutation.isPending}
+                                className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-100 disabled:opacity-50"
+                            >
+                                {expireMutation.isPending ? t('subs.details.processing') : t('subs.details.yesForceExpire')}
+                            </button>
+                            <button
+                                onClick={() => setShowConfirmExpire(false)}
+                                className="w-full py-3 text-slate-400 font-medium hover:text-slate-600 transition-colors"
+                            >
+                                {t('subs.details.goBack')}
+                            </button>
                         </div>
                     </div>
-                )
-            }
-        </div >
+                </div>
+            )}
+        </div>
     );
 };

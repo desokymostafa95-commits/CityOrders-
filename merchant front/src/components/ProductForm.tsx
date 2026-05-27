@@ -20,7 +20,8 @@ const schema = z.object({
     allowFractionalQuantity: z.boolean().default(false),
 });
 
-type FormData = z.infer<typeof schema>;
+type ProductFormInput = z.input<typeof schema>;
+type FormData = z.output<typeof schema>;
 
 interface Props {
     initialData?: {
@@ -44,16 +45,8 @@ export default function ProductForm({ initialData, onSubmit, loading }: Props) {
     const { categories } = useCategories();
     const [menuVisible, setMenuVisible] = useState(false);
 
-    const { control, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<FormData>({
-        resolver: zodResolver(z.object({
-            name: z.string().min(3, t('products.validation.name_min')),
-            description: z.string().optional().nullable(),
-            price: z.string().refine(val => !isNaN(Number(val)) && Number(val) > 0, t('products.validation.price_positive')),
-            categoryId: z.number().nullable().optional(),
-            unitType: z.string().default('Unit'),
-            quantityStep: z.string().refine(val => !isNaN(Number(val)) && Number(val) > 0, t('products.validation.price_positive')),
-            allowFractionalQuantity: z.boolean().default(false),
-        })),
+    const { control, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ProductFormInput, unknown, FormData>({
+        resolver: zodResolver(schema),
         defaultValues: {
             name: initialData?.name || '',
             description: initialData?.description || '',

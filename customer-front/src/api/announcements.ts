@@ -1,4 +1,4 @@
-import { http } from './http';
+import http from './http';
 import { ENDPOINTS } from './endpoints';
 import { GlobalAnnouncement } from '../types';
 

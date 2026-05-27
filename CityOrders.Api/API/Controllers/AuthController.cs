@@ -52,7 +52,9 @@ namespace CityOrders.Api.API.Controllers
                 user.CustomerProfile.Addresses.Add(new CustomerAddress
                 {
                     AddressLine = dto.AddressLine,
-                    IsDefault = true
+                    IsDefault = true,
+                    Lat = dto.Lat,
+                    Lng = dto.Lng
                 });
             }
 
@@ -110,10 +112,17 @@ namespace CityOrders.Api.API.Controllers
                 new Claim(ClaimTypes.Name, user.Name)
             };
 
-            var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+            var roleEntities = user.UserRoles.Select(ur => ur.Role).ToList();
+            var roles = roleEntities.Select(r => r.Name).ToList();
+            var hasAdminAccess = roles.Contains("Admin") ||
+                                 roleEntities.Any(r => r.IsCustom && r.Permissions != "[]");
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+            if (hasAdminAccess && !roles.Contains("Admin"))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
             }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
@@ -139,7 +148,7 @@ namespace CityOrders.Api.API.Controllers
                 UserId = user.Id,
                 Name = user.Name,
                 Email = user.Email,
-                Roles = roles,
+                Roles = hasAdminAccess && !roles.Contains("Admin") ? roles.Append("Admin").ToList() : roles,
                 Token = new JwtSecurityTokenHandler().WriteToken(token),
                 NeedsApproval = needsApproval
             };

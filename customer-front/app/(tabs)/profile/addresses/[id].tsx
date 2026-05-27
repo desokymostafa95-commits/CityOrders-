@@ -8,15 +8,17 @@ import * as Location from 'expo-location';
 import { useAddresses, useUpdateAddress } from '../../../../src/hooks/addresses';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { MapPin, Target } from 'lucide-react-native';
+import { MapLocationPicker } from '../../../../src/components/MapLocationPicker';
 
 const addressSchema = z.object({
-    addressLine: z.string().min(5, 'Address is too short'),
+    addressLine: z.string().min(5, 'العنوان قصير جدا'),
     notes: z.string().optional(),
-    lat: z.number().refine(v => v !== 0, 'Latitude is required'),
-    lng: z.number().refine(v => v !== 0, 'Longitude is required'),
+    lat: z.number().refine(v => v !== 0, 'اختيار الموقع مطلوب'),
+    lng: z.number().refine(v => v !== 0, 'اختيار الموقع مطلوب'),
 });
 
-type AddressForm = z.infer<typeof addressSchema>;
+type AddressFormInput = z.input<typeof addressSchema>;
+type AddressForm = z.output<typeof addressSchema>;
 
 export default function EditAddressScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,7 +31,7 @@ export default function EditAddressScreen() {
 
     const { mutate: updateAddress, isPending } = useUpdateAddress();
 
-    const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<AddressForm>({
+    const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<AddressFormInput, unknown, AddressForm>({
         resolver: zodResolver(addressSchema),
     });
 
@@ -47,18 +49,23 @@ export default function EditAddressScreen() {
     const lat = watch('lat');
     const lng = watch('lng');
 
+    const handleMapLocationChange = (location: { lat: number; lng: number }) => {
+        setValue('lat', location.lat, { shouldDirty: true, shouldValidate: true });
+        setValue('lng', location.lng, { shouldDirty: true, shouldValidate: true });
+    };
+
     const getCurrentLocation = async () => {
         setLocalLoading(true);
         try {
             let { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission denied', 'Location permission is required.');
+                Alert.alert('إذن الموقع مرفوض', 'فعّل إذن الموقع أو اختار المكان من الخريطة.');
                 return;
             }
 
             let location = await Location.getCurrentPositionAsync({});
-            setValue('lat', location.coords.latitude);
-            setValue('lng', location.coords.longitude);
+            setValue('lat', location.coords.latitude, { shouldDirty: true, shouldValidate: true });
+            setValue('lng', location.coords.longitude, { shouldDirty: true, shouldValidate: true });
 
             const [place] = await Location.reverseGeocodeAsync({
                 latitude: location.coords.latitude,
@@ -70,7 +77,7 @@ export default function EditAddressScreen() {
                 if (addr.length > 5) setValue('addressLine', addr);
             }
         } catch (error) {
-            Alert.alert('Error', 'Could not fetch your location.');
+            Alert.alert('تعذر تحديد الموقع', 'اختار المكان من الخريطة أو اكتب العنوان يدويا.');
         } finally {
             setLocalLoading(false);
         }
@@ -86,7 +93,7 @@ export default function EditAddressScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ title: 'Edit Address' }} />
+            <Stack.Screen options={{ title: 'تعديل العنوان' }} />
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
                 <Card style={styles.card}>
@@ -99,17 +106,26 @@ export default function EditAddressScreen() {
                             disabled={localLoading}
                             style={styles.locationBtn}
                         >
-                            Update GPS Location
+                            تحديث موقعي الحالي
                         </Button>
 
                         {lat !== 0 && (
                             <View style={styles.coordsRow}>
                                 <MapPin size={16} color={theme.colors.primary} />
                                 <Text variant="labelMedium" style={styles.coordsText}>
-                                    GPS: {lat.toFixed(6)}, {lng.toFixed(6)}
+                                    الموقع: {lat.toFixed(6)}, {lng.toFixed(6)}
                                 </Text>
                             </View>
                         )}
+
+                        <Text variant="labelLarge" style={styles.mapLabel}>
+                            اختار المكان من الخريطة
+                        </Text>
+                        <MapLocationPicker
+                            latitude={lat}
+                            longitude={lng}
+                            onChange={handleMapLocationChange}
+                        />
 
                         <Controller
                             control={control}
@@ -117,7 +133,7 @@ export default function EditAddressScreen() {
                             render={({ field: { onChange, onBlur, value } }) => (
                                 <View style={styles.inputContainer}>
                                     <TextInput
-                                        label="Full Address"
+                                        label="العنوان بالتفصيل"
                                         value={value || ''}
                                         onBlur={onBlur}
                                         onChangeText={onChange}
@@ -136,7 +152,7 @@ export default function EditAddressScreen() {
                             render={({ field: { onChange, onBlur, value } }) => (
                                 <View style={styles.inputContainer}>
                                     <TextInput
-                                        label="Notes for delivery"
+                                        label="ملاحظات للتوصيل"
                                         value={value || ''}
                                         onBlur={onBlur}
                                         onChangeText={onChange}
@@ -155,7 +171,7 @@ export default function EditAddressScreen() {
                     disabled={isPending || localLoading}
                     style={styles.submitBtn}
                 >
-                    Update Address
+                    تحديث العنوان
                 </Button>
 
             </ScrollView>
@@ -189,6 +205,9 @@ const styles = StyleSheet.create({
     coordsText: {
         marginLeft: 8,
         color: '#2E7D32',
+    },
+    mapLabel: {
+        marginBottom: 8,
     },
     inputContainer: {
         marginBottom: 12,

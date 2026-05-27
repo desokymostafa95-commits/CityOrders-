@@ -8,10 +8,11 @@ import { Link, router } from 'expo-router';
 import { setToken } from '../../src/api/http';
 import http from '../../src/api/http';
 import { ENDPOINTS } from '../../src/api/endpoints';
+import { friendlyError } from '../../src/utils/messages';
 
 const loginSchema = z.object({
-    email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    email: z.string().email('البريد الإلكتروني غير صحيح'),
+    password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -38,10 +39,9 @@ export default function LoginScreen() {
 
             await setToken(token);
 
-            // Navigate to tabs
             router.replace('/(tabs)/home');
         } catch (err: any) {
-            setError(err.response?.data || 'Login failed. Please try again.');
+            setError(friendlyError(err, 'فشل تسجيل الدخول. حاول مرة أخرى.'));
         } finally {
             setLoading(false);
         }
@@ -58,12 +58,12 @@ export default function LoginScreen() {
                         CityOrders
                     </Text>
                     <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                        Customer Portal
+                        تطبيق العميل
                     </Text>
                 </View>
 
                 <View style={styles.form}>
-                    <Text variant="headlineSmall" style={styles.title}>Welcome back</Text>
+                    <Text variant="headlineSmall" style={styles.title}>أهلا برجوعك</Text>
 
                     <Controller
                         control={control}
@@ -71,7 +71,7 @@ export default function LoginScreen() {
                         render={({ field: { onChange, onBlur, value } }) => (
                             <View style={styles.inputContainer}>
                                 <TextInput
-                                    label="Email"
+                                    label="البريد الإلكتروني"
                                     value={value}
                                     onBlur={onBlur}
                                     onChangeText={onChange}
@@ -91,7 +91,7 @@ export default function LoginScreen() {
                         render={({ field: { onChange, onBlur, value } }) => (
                             <View style={styles.inputContainer}>
                                 <TextInput
-                                    label="Password"
+                                    label="كلمة المرور"
                                     value={value}
                                     onBlur={onBlur}
                                     onChangeText={onChange}
@@ -113,14 +113,14 @@ export default function LoginScreen() {
                         disabled={loading}
                         style={styles.button}
                     >
-                        Login
+                        دخول
                     </Button>
 
                     <View style={styles.footer}>
-                        <Text variant="bodyMedium">Don't have an account? </Text>
+                        <Text variant="bodyMedium">ليس لديك حساب؟ </Text>
                         <Link href="/(auth)/register" asChild>
                             <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
-                                Register here
+                                إنشاء حساب
                             </Text>
                         </Link>
                     </View>

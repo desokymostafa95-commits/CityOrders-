@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, Alert, RefreshControl } from 'react-native';
-import { TextInput, Button, Text, ActivityIndicator, Card, Divider, SegmentedButtons, useTheme as usePaperTheme } from 'react-native-paper';
-import { useMyBrand, useSubscriptionStatus, useUpdateBrandLogo } from '@/src/hooks/useMerchantData';
+import { TextInput, Button, Text, ActivityIndicator, Card, Divider, HelperText, useTheme as usePaperTheme } from 'react-native-paper';
+import { useMarketSectors, useMyBrand, useSubscriptionStatus, useUpdateBrandLogo } from '@/src/hooks/useMerchantData';
 import * as ImagePicker from 'expo-image-picker';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { Avatar, IconButton } from 'react-native-paper';
@@ -13,26 +13,48 @@ import { useQueryClient } from '@tanstack/react-query';
 import { t } from '@/src/i18n';
 import { useTheme } from '@/src/theme/ThemeContext';
 
+const optionalNumber = z.preprocess(
+    (value) => value === '' || value === null || value === undefined ? undefined : Number(value),
+    z.number().min(0).optional()
+);
+
 const schema = z.object({
     name: z.string().min(3, 'brand.validation.name_min'),
     address: z.string().min(5, 'brand.validation.address_required'),
     phone1: z.string().min(8, 'brand.validation.phone_required'),
+    marketSectorId: z.coerce.number().int().positive('Select a market sector'),
     masterCategoryIds: z.array(z.number()).min(1, 'Select at least one category'),
-    fixedDeliveryFee: z.coerce.number().min(0, 'Fixed fee must be >= 0'),
-    minVariableDeliveryFee: z.coerce.number().min(0, 'Min fee must be >= 0'),
-    maxVariableDeliveryFee: z.coerce.number().min(0, 'Max fee must be >= 0'),
-    deliveryFeeType: z.enum(['Fixed', 'Variable']),
+    fixedDeliveryFee: z.coerce.number().min(0).default(0),
+    minVariableDeliveryFee: z.coerce.number().min(0).default(0),
+    maxVariableDeliveryFee: z.coerce.number().min(0).default(0),
+    deliveryFeeType: z.enum(['Fixed', 'Variable']).default('Fixed'),
+    baseDeliveryFee: z.coerce.number().min(0, 'brand.validation.delivery_base'),
+    feePerKilometer: z.coerce.number().min(0, 'brand.validation.delivery_km'),
+    minDeliveryFee: optionalNumber,
+    maxDeliveryFee: optionalNumber,
+    maxDeliveryDistanceKm: optionalNumber,
+}).superRefine((data, ctx) => {
+    if (data.minDeliveryFee !== undefined && data.maxDeliveryFee !== undefined && data.minDeliveryFee > data.maxDeliveryFee) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['maxDeliveryFee'],
+            message: 'brand.validation.delivery_max_gte_min',
+        });
+    }
 });
 
-type FormData = z.infer<typeof schema>;
+type BrandFormInput = z.input<typeof schema>;
+type BrandFormData = z.output<typeof schema>;
 
 export default function BrandScreen() {
     const { isDark } = useTheme();
     const theme = usePaperTheme();
     const { data: brand, isLoading } = useMyBrand();
+    const { data: marketSectors = [] } = useMarketSectors();
     const sub = useSubscriptionStatus().data;
     const updateLogo = useUpdateBrandLogo();
     const [updating, setUpdating] = useState(false);
+    const [previewDistanceKm, setPreviewDistanceKm] = useState('3');
     const isExpired = sub?.state === 'Expired' || sub?.state === 'None';
     const queryClient = useQueryClient();
 
@@ -90,33 +112,73 @@ export default function BrandScreen() {
         }
     }, [sub?.updatedAt]);
 
-    const { control, handleSubmit, watch, formState: { isDirty } } = useForm<FormData>({
+    const { control, handleSubmit, watch, setValue, formState: { isDirty } } = useForm<BrandFormInput, unknown, BrandFormData>({
         resolver: zodResolver(schema),
         values: brand ? {
             name: brand.name,
             address: brand.address || '',
             phone1: brand.phone1 || '',
+            marketSectorId: brand.marketSectorId || 1,
             masterCategoryIds: brand.masterCategoryIds || [],
             fixedDeliveryFee: brand.fixedDeliveryFee || 0,
             minVariableDeliveryFee: brand.minVariableDeliveryFee || 0,
             maxVariableDeliveryFee: brand.maxVariableDeliveryFee || 0,
             deliveryFeeType: (brand.deliveryFeeType as 'Fixed' | 'Variable') || 'Fixed',
-        } as FormData : undefined
+            baseDeliveryFee: brand.baseDeliveryFee || 0,
+            feePerKilometer: brand.feePerKilometer || 0,
+            minDeliveryFee: brand.minDeliveryFee ?? undefined,
+            maxDeliveryFee: brand.maxDeliveryFee ?? undefined,
+            maxDeliveryDistanceKm: brand.maxDeliveryDistanceKm ?? undefined,
+        } : undefined
     });
+
+    const baseDeliveryFeeValue = watch('baseDeliveryFee');
+    const feePerKilometerValue = watch('feePerKilometer');
+    const minDeliveryFeeValue = watch('minDeliveryFee');
+    const maxDeliveryFeeValue = watch('maxDeliveryFee');
+    const maxDeliveryDistanceKmValue = watch('maxDeliveryDistanceKm');
+    const selectedSectorId = watch('marketSectorId');
+
+    const deliveryPreview = React.useMemo(() => {
+        const base = Number(baseDeliveryFeeValue || 0);
+        const perKm = Number(feePerKilometerValue || 0);
+        const min = minDeliveryFeeValue === undefined ? undefined : Number(minDeliveryFeeValue);
+        const max = maxDeliveryFeeValue === undefined ? undefined : Number(maxDeliveryFeeValue);
+        const maxDistance = maxDeliveryDistanceKmValue === undefined ? undefined : Number(maxDeliveryDistanceKmValue);
+        const distance = Number(previewDistanceKm || 0);
+
+        if (maxDistance !== undefined && distance > maxDistance) {
+            return { fee: undefined, blocked: true };
+        }
+
+        let fee = base + (perKm * distance);
+        if (min !== undefined && fee < min) fee = min;
+        if (max !== undefined && fee > max) fee = max;
+        return { fee: Number.isFinite(fee) ? fee : 0, blocked: false };
+    }, [
+        previewDistanceKm,
+        baseDeliveryFeeValue,
+        feePerKilometerValue,
+        minDeliveryFeeValue,
+        maxDeliveryFeeValue,
+        maxDeliveryDistanceKmValue,
+    ]);
 
     const [masterCategories, setMasterCategories] = useState<any[]>([]);
 
     React.useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await apiClient.get('/Merchant/master-categories');
+                const response = await apiClient.get('/Merchant/master-categories', {
+                    params: { marketSectorId: selectedSectorId || undefined },
+                });
                 setMasterCategories(response.data);
             } catch (err) {
                 console.error('Failed to fetch master categories', err);
             }
         };
         fetchCategories();
-    }, []);
+    }, [selectedSectorId]);
 
     const toggleCategory = (id: number, currentIds: number[], onChange: (ids: number[]) => void) => {
         if (currentIds.includes(id)) {
@@ -126,7 +188,7 @@ export default function BrandScreen() {
         }
     };
 
-    const onSubmit: SubmitHandler<FormData> = async (data) => {
+    const onSubmit: SubmitHandler<BrandFormData> = async (data) => {
         if (isExpired) return;
         setUpdating(true);
         try {
@@ -276,95 +338,176 @@ export default function BrandScreen() {
                         )}
                     />
 
-                    <Divider style={{ marginVertical: 16 }} />
-                    <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t('brand.delivery_fees')}</Text>
-
+                    <Text variant="labelLarge" style={styles.label}>Market sector</Text>
                     <Controller
                         control={control}
-                        name="deliveryFeeType"
-                        render={({ field: { onChange, value } }) => (
-                            <SegmentedButtons
-                                value={value}
-                                onValueChange={onChange}
-                                buttons={[
-                                    { value: 'Fixed', label: t('brand.fixed_delivery_fee'), disabled: isExpired },
-                                    { value: 'Variable', label: t('brand.variable_fee_range'), disabled: isExpired },
-                                ]}
-                                style={{ marginBottom: 16 }}
-                            />
+                        name="marketSectorId"
+                        render={({ field: { onChange, value }, fieldState: { error } }) => (
+                            <View>
+                                <View style={styles.chipContainer}>
+                                    {marketSectors.map((sector) => (
+                                        <Button
+                                            key={sector.id}
+                                            mode={value === sector.id ? "contained" : "outlined"}
+                                            onPress={() => {
+                                                onChange(sector.id);
+                                                setValue('masterCategoryIds', [], { shouldDirty: true, shouldValidate: true });
+                                            }}
+                                            style={styles.chip}
+                                            labelStyle={{ fontSize: 12 }}
+                                            disabled={isExpired}
+                                            compact
+                                        >
+                                            {sector.name}
+                                        </Button>
+                                    ))}
+                                </View>
+                                {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{error.message}</Text>}
+                            </View>
                         )}
                     />
 
-                    {watch('deliveryFeeType') === 'Fixed' ? (
-                        <Controller
-                            control={control}
-                            name="fixedDeliveryFee"
-                            render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        label={t('brand.fixed_delivery_fee')}
-                                        onBlur={onBlur}
-                                        onChangeText={onChange}
-                                        value={value?.toString()}
-                                        mode="outlined"
-                                        keyboardType="numeric"
-                                        error={!!error}
-                                        disabled={isExpired}
-                                    />
-                                    {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{error.message}</Text>}
-                                </View>
-                            )}
-                        />
-                    ) : (
-                        <>
-                            <Text variant="labelLarge" style={styles.label}>{t('brand.variable_fee_range')}</Text>
-                            <View style={styles.row}>
-                                <View style={styles.flex1}>
-                                    <Controller
-                                        control={control}
-                                        name="minVariableDeliveryFee"
-                                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                                            <View style={styles.inputContainer}>
-                                                <TextInput
-                                                    label={t('brand.min')}
-                                                    onBlur={onBlur}
-                                                    onChangeText={onChange}
-                                                    value={value?.toString()}
-                                                    mode="outlined"
-                                                    keyboardType="numeric"
-                                                    error={!!error}
-                                                    disabled={isExpired}
-                                                />
-                                                {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{error.message}</Text>}
-                                            </View>
-                                        )}
-                                    />
-                                </View>
-                                <View style={{ width: 16 }} />
-                                <View style={styles.flex1}>
-                                    <Controller
-                                        control={control}
-                                        name="maxVariableDeliveryFee"
-                                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                                            <View style={styles.inputContainer}>
-                                                <TextInput
-                                                    label={t('brand.max')}
-                                                    onBlur={onBlur}
-                                                    onChangeText={onChange}
-                                                    value={value?.toString()}
-                                                    mode="outlined"
-                                                    keyboardType="numeric"
-                                                    error={!!error}
-                                                    disabled={isExpired}
-                                                />
-                                                {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{error.message}</Text>}
-                                            </View>
-                                        )}
-                                    />
-                                </View>
+                    <Divider style={{ marginVertical: 16 }} />
+                    <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t('brand.delivery_fees')}</Text>
+                    <HelperText type="info" visible style={styles.deliveryHint}>
+                        {t('brand.delivery_pricing_hint')}
+                    </HelperText>
+
+                    <Controller
+                        control={control}
+                        name="baseDeliveryFee"
+                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    label={t('brand.base_delivery_fee')}
+                                    onBlur={onBlur}
+                                    onChangeText={onChange}
+                                    value={value?.toString()}
+                                    mode="outlined"
+                                    keyboardType="numeric"
+                                    error={!!error}
+                                    disabled={isExpired}
+                                    right={<TextInput.Affix text={t('brand.egp')} />}
+                                />
+                                {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{t(error.message || '')}</Text>}
                             </View>
-                        </>
-                    )}
+                        )}
+                    />
+
+                    <Controller
+                        control={control}
+                        name="feePerKilometer"
+                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    label={t('brand.delivery_fee_per_km')}
+                                    onBlur={onBlur}
+                                    onChangeText={onChange}
+                                    value={value?.toString()}
+                                    mode="outlined"
+                                    keyboardType="numeric"
+                                    error={!!error}
+                                    disabled={isExpired}
+                                    right={<TextInput.Affix text={t('brand.egp_per_km')} />}
+                                />
+                                {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{t(error.message || '')}</Text>}
+                            </View>
+                        )}
+                    />
+
+                    <View style={styles.row}>
+                        <View style={styles.flex1}>
+                            <Controller
+                                control={control}
+                                name="minDeliveryFee"
+                                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                                    <View style={styles.inputContainer}>
+                                        <TextInput
+                                            label={t('brand.min_delivery_fee')}
+                                            onBlur={onBlur}
+                                            onChangeText={onChange}
+                                            value={value?.toString() ?? ''}
+                                            mode="outlined"
+                                            keyboardType="numeric"
+                                            error={!!error}
+                                            disabled={isExpired}
+                                            right={<TextInput.Affix text={t('brand.egp')} />}
+                                        />
+                                        {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{t(error.message || '')}</Text>}
+                                    </View>
+                                )}
+                            />
+                        </View>
+                        <View style={{ width: 16 }} />
+                        <View style={styles.flex1}>
+                            <Controller
+                                control={control}
+                                name="maxDeliveryFee"
+                                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                                    <View style={styles.inputContainer}>
+                                        <TextInput
+                                            label={t('brand.max_delivery_fee')}
+                                            onBlur={onBlur}
+                                            onChangeText={onChange}
+                                            value={value?.toString() ?? ''}
+                                            mode="outlined"
+                                            keyboardType="numeric"
+                                            error={!!error}
+                                            disabled={isExpired}
+                                            right={<TextInput.Affix text={t('brand.egp')} />}
+                                        />
+                                        {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{t(error.message || '')}</Text>}
+                                    </View>
+                                )}
+                            />
+                        </View>
+                    </View>
+
+                    <Controller
+                        control={control}
+                        name="maxDeliveryDistanceKm"
+                        render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    label={t('brand.max_delivery_distance_km')}
+                                    onBlur={onBlur}
+                                    onChangeText={onChange}
+                                    value={value?.toString() ?? ''}
+                                    mode="outlined"
+                                    keyboardType="numeric"
+                                    error={!!error}
+                                    disabled={isExpired}
+                                    right={<TextInput.Affix text={t('brand.km')} />}
+                                />
+                                {error && <Text style={{ color: theme.colors.error, fontSize: 12 }}>{t(error.message || '')}</Text>}
+                            </View>
+                        )}
+                    />
+
+                    <View style={[styles.deliveryPreview, { backgroundColor: theme.colors.surfaceVariant }]}>
+                        <View style={styles.row}>
+                            <View style={styles.flex1}>
+                                <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
+                                    {t('brand.delivery_preview')}
+                                </Text>
+                                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                                    {t('brand.delivery_preview_hint')}
+                                </Text>
+                            </View>
+                            <TextInput
+                                label={t('brand.preview_distance')}
+                                value={previewDistanceKm}
+                                onChangeText={setPreviewDistanceKm}
+                                mode="outlined"
+                                keyboardType="numeric"
+                                style={styles.previewInput}
+                                right={<TextInput.Affix text={t('brand.km')} />}
+                            />
+                        </View>
+                        <Text variant="headlineSmall" style={{ color: deliveryPreview.blocked ? theme.colors.error : theme.colors.primary, fontWeight: '900', marginTop: 12 }}>
+                            {deliveryPreview.blocked ? t('brand.delivery_out_of_range') : `${deliveryPreview.fee?.toFixed(2)} ${t('brand.egp')}`}
+                        </Text>
+                    </View>
 
                     <Text variant="labelLarge" style={styles.label}>{t('apply.categories')}</Text>
                     <Controller
@@ -453,6 +596,19 @@ const styles = StyleSheet.create({
         marginBottom: 8,
         fontWeight: 'bold',
         fontSize: 14,
+    },
+    deliveryHint: {
+        paddingHorizontal: 0,
+        marginBottom: 8,
+    },
+    deliveryPreview: {
+        padding: 14,
+        borderRadius: 12,
+        marginBottom: 16,
+    },
+    previewInput: {
+        width: 132,
+        marginLeft: 12,
     },
     logoSection: {
         alignItems: 'center',

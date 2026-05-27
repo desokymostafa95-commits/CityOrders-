@@ -12,8 +12,8 @@ import { t } from '@/src/i18n';
 import { Sun, Moon, Languages } from 'lucide-react-native';
 
 const schema = z.object({
-    email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    email: z.string().email('البريد الإلكتروني غير صحيح'),
+    password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -62,19 +62,13 @@ export default function LoginScreen() {
         setLoading(true);
         setError(null);
         try {
-            console.log('Attempting login to:', apiClient.defaults.baseURL + '/Auth/login');
             const response = await apiClient.post('/Auth/login', data);
-            console.log('Login success:', response.data);
             const { token, roles } = response.data;
 
             await signIn(token, roles);
-
-            await signIn(token, roles);
-            // Redirection is now handled by RootLayoutNav in _layout.tsx
         } catch (err: any) {
-            console.error('Login error detail:', err);
-            const msg = err.response?.data?.message || err.response?.data || err.message || 'Login failed.';
-            setError(typeof msg === 'string' ? msg : (msg?.toString() || 'Login failed.'));
+            const msg = err.response?.data?.message || err.response?.data || err.message || 'فشل تسجيل الدخول.';
+            setError(typeof msg === 'string' ? msg : (msg?.toString() || 'فشل تسجيل الدخول.'));
         } finally {
             setLoading(false);
         }
@@ -86,7 +80,6 @@ export default function LoginScreen() {
             style={[styles.container, { backgroundColor: theme.colors.background }]}
         >
             <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* Settings Controls at Top */}
                 <View style={styles.settingsBar}>
                     <View style={styles.languageSelector}>
                         <Languages size={20} color={theme.colors.primary} />

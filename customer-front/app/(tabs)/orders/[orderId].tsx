@@ -1,18 +1,25 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, RefreshControl } from 'react-native';
-import { Text, ActivityIndicator, useTheme, Chip, Button, Divider, Surface } from 'react-native-paper';
-import { useLocalSearchParams, Stack, useFocusEffect } from 'expo-router';
-import { useOrderDetails, useCancelOrder } from '../../../src/hooks/orders';
+import React, { useCallback, useState } from 'react';
+import { View, StyleSheet, ScrollView, Alert, RefreshControl, Pressable } from 'react-native';
+import { Text, ActivityIndicator, useTheme, Button, Divider, Surface, TextInput, Snackbar } from 'react-native-paper';
+import { useLocalSearchParams, Stack, useFocusEffect, router } from 'expo-router';
+import { useOrderDetails, useCancelOrder, useSubmitOrderReview } from '../../../src/hooks/orders';
+import { useCustomerOrderChatThread } from '../../../src/hooks/chat';
 import { formatDate, formatCurrency, getStatusColor } from '../../../src/utils/format';
-import { Package, Truck, Calendar, MapPin, XCircle, Info } from 'lucide-react-native';
+import { translateStatus } from '../../../src/utils/messages';
+import { Calendar, CheckCircle2, Circle, Info, MapPin, Package, Star } from 'lucide-react-native';
 
 export default function OrderDetailsScreen() {
     const { orderId } = useLocalSearchParams<{ orderId: string }>();
     const id = parseInt(orderId);
     const theme = useTheme();
+    const [rating, setRating] = useState(5);
+    const [comment, setComment] = useState('');
+    const [reviewMessage, setReviewMessage] = useState('');
 
-    const { data: order, isLoading, error, refetch } = useOrderDetails(id);
+    const { data: order, isLoading, refetch } = useOrderDetails(id);
     const { mutate: cancelOrder, isPending: isCancelling } = useCancelOrder();
+    const submitReview = useSubmitOrderReview();
+    const orderChat = useCustomerOrderChatThread();
 
     useFocusEffect(
         useCallback(() => {
@@ -23,17 +30,44 @@ export default function OrderDetailsScreen() {
 
     const handleCancel = () => {
         Alert.alert(
-            'Cancel Order',
-            'Are you sure you want to cancel this order?',
+            'إلغاء الطلب',
+            'هل أنت متأكد أنك تريد إلغاء هذا الطلب؟',
             [
-                { text: 'No', style: 'cancel' },
+                { text: 'لا', style: 'cancel' },
                 {
-                    text: 'Yes, Cancel',
+                    text: 'نعم، إلغاء',
                     style: 'destructive',
-                    onPress: () => cancelOrder(id)
+                    onPress: () => cancelOrder(id),
                 },
             ]
         );
+    };
+
+    const handleSubmitReview = () => {
+        submitReview.mutate(
+            {
+                orderId: id,
+                rating,
+                comment: comment.trim() || undefined,
+            },
+            {
+                onSuccess: () => {
+                    setReviewMessage('تم إرسال تقييمك بنجاح');
+                    setComment('');
+                },
+                onError: (error: any) => {
+                    const message = error.response?.data?.message || error.response?.data || 'تعذر إرسال التقييم. حاول مرة أخرى.';
+                    setReviewMessage(message);
+                },
+            }
+        );
+    };
+
+    const handleOpenChat = () => {
+        orderChat.mutate(id, {
+            onSuccess: (thread) => router.push({ pathname: '/chat/[threadId]', params: { threadId: String(thread.id) } }),
+            onError: () => setReviewMessage('تعذر فتح المحادثة. حاول مرة أخرى.'),
+        });
     };
 
     if (isLoading && !order) {
@@ -47,7 +81,7 @@ export default function OrderDetailsScreen() {
     if (!order) {
         return (
             <View style={styles.centered}>
-                <Text variant="titleLarge">Order not found</Text>
+                <Text variant="titleLarge">الطلب غير موجود</Text>
             </View>
         );
     }
@@ -57,9 +91,9 @@ export default function OrderDetailsScreen() {
     return (
         <View style={styles.container}>
             <Stack.Screen options={{
-                title: `Order #${order.orderNumber}`,
+                title: `طلب #${order.orderNumber}`,
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: '#FFFFFF' },
+                headerStyle: { backgroundColor: '#F8FAFC' },
             }} />
 
             <ScrollView
@@ -67,14 +101,14 @@ export default function OrderDetailsScreen() {
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={isLoading && !!order} onRefresh={refetch} />}
             >
-                {/* 1. Status Header */}
                 <Surface style={styles.statusCard} elevation={0}>
                     <View style={styles.statusRow}>
-                        <View>
-                            <Text variant="labelSmall" style={styles.statusLabel}>STATUS</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text variant="labelSmall" style={styles.statusLabel}>الحالة</Text>
                             <Text variant="titleLarge" style={[styles.statusValue, { color: getStatusColor(order.status) }]}>
-                                {order.status.toUpperCase()}
+                                {translateStatus(order.status)}
                             </Text>
+                            {!!order.nextStep && <Text variant="bodySmall" style={styles.nextStep}>{order.nextStep}</Text>}
                         </View>
                         <View style={[styles.brandIcon, { backgroundColor: theme.colors.primaryContainer }]}>
                             <Package size={24} color={theme.colors.primary} />
@@ -88,14 +122,36 @@ export default function OrderDetailsScreen() {
                             <Calendar size={14} color="#757575" />
                             <Text variant="bodySmall" style={styles.metaText}>{formatDate(order.createdAt)}</Text>
                         </View>
-                        <Text variant="bodySmall" style={styles.metaText}>•</Text>
+                        <Text variant="bodySmall" style={styles.metaText}>-</Text>
                         <Text variant="bodySmall" style={styles.metaText}>{order.brandName}</Text>
                     </View>
                 </Surface>
 
-                {/* 2. Order Items */}
                 <View style={styles.section}>
-                    <Text variant="titleMedium" style={styles.sectionTitle}>Order Items</Text>
+                    <Text variant="titleMedium" style={styles.sectionTitle}>متابعة الطلب</Text>
+                    <Surface style={styles.contentCard} elevation={0}>
+                        {(order.timeline || []).map((step, index) => (
+                            <View key={step.key} style={styles.timelineRow}>
+                                <View style={styles.timelineIconWrap}>
+                                    {step.completed ? (
+                                        <CheckCircle2 size={22} color={theme.colors.primary} />
+                                    ) : (
+                                        <Circle size={22} color="#CFCFCF" />
+                                    )}
+                                    {index < (order.timeline?.length || 0) - 1 && <View style={styles.timelineLine} />}
+                                </View>
+                                <View style={styles.timelineText}>
+                                    <Text variant="titleSmall" style={styles.timelineLabel}>{step.label}</Text>
+                                    <Text variant="bodySmall" style={styles.timelineDescription}>{step.description}</Text>
+                                    {step.at ? <Text variant="bodySmall" style={styles.timelineDate}>{formatDate(step.at)}</Text> : null}
+                                </View>
+                            </View>
+                        ))}
+                    </Surface>
+                </View>
+
+                <View style={styles.section}>
+                    <Text variant="titleMedium" style={styles.sectionTitle}>محتويات الطلب</Text>
                     <Surface style={styles.contentCard} elevation={0}>
                         {order.items.map((item, idx) => (
                             <View key={idx} style={styles.itemRow}>
@@ -113,15 +169,21 @@ export default function OrderDetailsScreen() {
 
                         <View style={styles.costsContainer}>
                             <View style={styles.costRow}>
-                                <Text style={styles.costLabel}>Subtotal</Text>
+                                <Text style={styles.costLabel}>قيمة المنتجات</Text>
                                 <Text style={styles.costValue}>{formatCurrency(order.subtotal)}</Text>
                             </View>
                             <View style={styles.costRow}>
-                                <Text style={styles.costLabel}>Delivery Fee</Text>
+                                <Text style={styles.costLabel}>رسوم التوصيل</Text>
                                 <Text style={styles.costValue}>{formatCurrency(order.deliveryFee)}</Text>
                             </View>
+                            {!!order.discountAmount && order.discountAmount > 0 && (
+                                <View style={styles.costRow}>
+                                    <Text style={styles.costLabel}>الخصم</Text>
+                                    <Text style={styles.discountValue}>-{formatCurrency(order.discountAmount)}</Text>
+                                </View>
+                            )}
                             <View style={[styles.costRow, styles.totalRow]}>
-                                <Text variant="titleLarge" style={styles.totalLabel}>Total</Text>
+                                <Text variant="titleLarge" style={styles.totalLabel}>الإجمالي</Text>
                                 <Text variant="titleLarge" style={[styles.totalValue, { color: theme.colors.primary }]}>
                                     {formatCurrency(order.total)}
                                 </Text>
@@ -130,14 +192,13 @@ export default function OrderDetailsScreen() {
                     </Surface>
                 </View>
 
-                {/* 3. Delivery info */}
                 <View style={styles.section}>
-                    <Text variant="titleMedium" style={styles.sectionTitle}>Delivery Details</Text>
+                    <Text variant="titleMedium" style={styles.sectionTitle}>بيانات التوصيل</Text>
                     <Surface style={styles.contentCard} elevation={0}>
                         <View style={styles.detailItem}>
                             <MapPin size={18} color={theme.colors.primary} />
                             <View style={styles.detailTextContainer}>
-                                <Text variant="titleSmall" style={styles.detailLabel}>Address</Text>
+                                <Text variant="titleSmall" style={styles.detailLabel}>العنوان</Text>
                                 <Text variant="bodyMedium" style={styles.detailValue}>{order.deliveryAddress}</Text>
                             </View>
                         </View>
@@ -146,7 +207,7 @@ export default function OrderDetailsScreen() {
                             <View style={[styles.detailItem, { marginTop: 16 }]}>
                                 <Info size={18} color="#757575" />
                                 <View style={styles.detailTextContainer}>
-                                    <Text variant="titleSmall" style={styles.detailLabel}>Delivery Notes</Text>
+                                    <Text variant="titleSmall" style={styles.detailLabel}>ملاحظات الطلب</Text>
                                     <Text variant="bodyMedium" style={styles.detailValue}>{order.notes}</Text>
                                 </View>
                             </View>
@@ -154,13 +215,88 @@ export default function OrderDetailsScreen() {
                     </Surface>
                 </View>
 
-                {/* 4. Action */}
+                {(order.canReview || order.review) && (
+                    <View style={styles.section}>
+                        <Text variant="titleMedium" style={styles.sectionTitle}>تقييم المتجر</Text>
+                        <Surface style={styles.contentCard} elevation={0}>
+                            {order.review ? (
+                                <View style={styles.reviewBox}>
+                                    <View style={styles.reviewHeader}>
+                                        <Text variant="titleSmall" style={styles.reviewTitle}>تقييمك لهذا الطلب</Text>
+                                        <View style={styles.reviewStars}>
+                                            {Array.from({ length: order.review.rating }).map((_, index) => (
+                                                <Star key={index} size={16} color="#F59E0B" fill="#F59E0B" />
+                                            ))}
+                                        </View>
+                                    </View>
+                                    {!!order.review.comment && (
+                                        <Text variant="bodyMedium" style={styles.reviewComment}>
+                                            {order.review.comment}
+                                        </Text>
+                                    )}
+                                </View>
+                            ) : (
+                                <View style={styles.reviewBox}>
+                                    <Text variant="bodyMedium" style={styles.reviewPrompt}>
+                                        الطلب اتسلم؟ قيّم المتجر عشان تساعد باقي العملاء.
+                                    </Text>
+                                    <View style={styles.ratingRow}>
+                                        {[1, 2, 3, 4, 5].map((value) => (
+                                            <Pressable
+                                                key={value}
+                                                onPress={() => setRating(value)}
+                                                style={styles.starButton}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={`تقييم ${value} من 5`}
+                                            >
+                                                <Star
+                                                    size={28}
+                                                    color="#F59E0B"
+                                                    fill={value <= rating ? '#F59E0B' : 'transparent'}
+                                                />
+                                            </Pressable>
+                                        ))}
+                                    </View>
+                                    <TextInput
+                                        mode="outlined"
+                                        label="تعليق اختياري"
+                                        value={comment}
+                                        onChangeText={setComment}
+                                        multiline
+                                        numberOfLines={3}
+                                        style={styles.reviewInput}
+                                    />
+                                    <Button
+                                        mode="contained"
+                                        onPress={handleSubmitReview}
+                                        loading={submitReview.isPending}
+                                        disabled={submitReview.isPending}
+                                        style={styles.reviewButton}
+                                    >
+                                        إرسال التقييم
+                                    </Button>
+                                </View>
+                            )}
+                        </Surface>
+                    </View>
+                )}
+
                 <View style={styles.actionSection}>
+                    <Button
+                        mode="outlined"
+                        onPress={handleOpenChat}
+                        loading={orderChat.isPending}
+                        disabled={orderChat.isPending}
+                        style={styles.chatBtn}
+                        icon="message-text-outline"
+                    >
+                        مراسلة التاجر
+                    </Button>
                     {!isPending && (
                         <View style={styles.infoBox}>
                             <Info size={16} color="#757575" />
                             <Text variant="bodySmall" style={styles.infoText}>
-                                Orders can only be cancelled while in 'Pending' status.
+                                يمكن إلغاء الطلب فقط قبل قبول التاجر له.
                             </Text>
                         </View>
                     )}
@@ -173,10 +309,17 @@ export default function OrderDetailsScreen() {
                         labelStyle={[styles.cancelBtnLabel, !isPending && { color: '#BDBDBD' }]}
                         icon="close-circle-outline"
                     >
-                        Cancel Order
+                        إلغاء الطلب
                     </Button>
                 </View>
             </ScrollView>
+            <Snackbar
+                visible={!!reviewMessage}
+                onDismiss={() => setReviewMessage('')}
+                duration={3500}
+            >
+                {reviewMessage}
+            </Snackbar>
         </View>
     );
 }
@@ -184,15 +327,18 @@ export default function OrderDetailsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F8F8',
+        backgroundColor: '#F8FAFC',
     },
     centered: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F8FAFC',
     },
     scrollContent: {
+        width: '100%',
+        maxWidth: 760,
+        alignSelf: 'center',
         padding: 16,
         paddingBottom: 40,
     },
@@ -202,7 +348,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         marginBottom: 24,
         borderWidth: 1,
-        borderColor: '#F0F0F0',
+        borderColor: '#E2E8F0',
+        shadowColor: '#0F172A',
+        shadowOpacity: 0.05,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
     },
     statusRow: {
         flexDirection: 'row',
@@ -218,6 +368,10 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         marginTop: 2,
     },
+    nextStep: {
+        color: '#757575',
+        marginTop: 4,
+    },
     brandIcon: {
         width: 50,
         height: 50,
@@ -232,6 +386,7 @@ const styles = StyleSheet.create({
     metaInfo: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexWrap: 'wrap',
     },
     metaItem: {
         flexDirection: 'row',
@@ -255,8 +410,39 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#F0F0F0',
+        borderColor: '#E2E8F0',
         overflow: 'hidden',
+    },
+    timelineRow: {
+        flexDirection: 'row',
+        paddingHorizontal: 16,
+        paddingTop: 16,
+    },
+    timelineIconWrap: {
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    timelineLine: {
+        width: 2,
+        flex: 1,
+        minHeight: 30,
+        backgroundColor: '#E5E5E5',
+        marginTop: 4,
+    },
+    timelineText: {
+        flex: 1,
+        paddingBottom: 16,
+    },
+    timelineLabel: {
+        fontWeight: '800',
+    },
+    timelineDescription: {
+        color: '#757575',
+        marginTop: 2,
+    },
+    timelineDate: {
+        color: '#9E9E9E',
+        marginTop: 4,
     },
     itemRow: {
         padding: 16,
@@ -284,7 +470,7 @@ const styles = StyleSheet.create({
     },
     costsContainer: {
         padding: 16,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: '#F8FAFC',
     },
     costRow: {
         flexDirection: 'row',
@@ -296,6 +482,10 @@ const styles = StyleSheet.create({
     },
     costValue: {
         fontWeight: '600',
+    },
+    discountValue: {
+        fontWeight: '700',
+        color: '#2E7D32',
     },
     totalRow: {
         marginTop: 12,
@@ -325,15 +515,67 @@ const styles = StyleSheet.create({
     detailValue: {
         lineHeight: 20,
     },
+    reviewBox: {
+        padding: 16,
+    },
+    reviewHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+    },
+    reviewTitle: {
+        fontWeight: '800',
+        flex: 1,
+    },
+    reviewStars: {
+        flexDirection: 'row',
+        gap: 3,
+    },
+    reviewComment: {
+        marginTop: 10,
+        color: '#424242',
+        lineHeight: 20,
+    },
+    reviewPrompt: {
+        color: '#424242',
+        lineHeight: 20,
+    },
+    ratingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 12,
+        marginBottom: 12,
+    },
+    starButton: {
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 4,
+    },
+    reviewInput: {
+        backgroundColor: '#FFFFFF',
+        marginBottom: 12,
+    },
+    reviewButton: {
+        borderRadius: 12,
+    },
     actionSection: {
         marginTop: 8,
+    },
+    chatBtn: {
+        borderRadius: 16,
+        marginBottom: 12,
     },
     infoBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F5F5F5',
+        backgroundColor: '#FFFFFF',
         padding: 12,
-        borderRadius: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
         marginBottom: 16,
     },
     infoText: {
@@ -342,7 +584,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     cancelBtn: {
-        borderRadius: 14,
+        borderRadius: 16,
         height: 50,
         justifyContent: 'center',
     },

@@ -7,6 +7,8 @@ namespace CityOrders.Api.Infrastructure.Data
     {
         public static void Initialize(AppDbContext context)
         {
+            SeedMarketSectors(context);
+
             // Idempotency: Check if admins exist to skip heavyweight seeding
             // But we should check role existence first
             if (!context.Roles.Any())
@@ -56,6 +58,7 @@ namespace CityOrders.Api.Infrastructure.Data
                         Name = "Demo Brand",
                         Address = "123 Market St",
                         Phone1 = "555-0101",
+                        MarketSectorId = 1,
                         IsActive = true,
                         // MerchantUserId will be set by EF when adding user
                     };
@@ -124,6 +127,114 @@ namespace CityOrders.Api.Infrastructure.Data
                     deliveryUser.UserRoles.Add(new UserRole { Role = deliveryRole });
                     context.Users.Add(deliveryUser);
                 }
+            }
+
+            context.SaveChanges();
+
+            NormalizeLegacyCategorySectors(context);
+
+            // 5. Demo subscription data
+            var demoPlan = context.SubscriptionPlans.FirstOrDefault(p => p.Name == "Demo Plan");
+            if (demoPlan == null)
+            {
+                demoPlan = new SubscriptionPlan
+                {
+                    Name = "Demo Plan",
+                    PriceEgp = 0,
+                    DurationDays = 30,
+                    GraceDays = 7,
+                    IsEnabled = true,
+                    MaxConcurrentOffers = 3
+                };
+                context.SubscriptionPlans.Add(demoPlan);
+                context.SaveChanges();
+            }
+
+            var demoMerchant = context.Users
+                .Include(u => u.MerchantProfile)
+                    .ThenInclude(mp => mp!.Brand)
+                .FirstOrDefault(u => u.Email == "merchant@cityorders.local");
+
+            if (demoMerchant?.MerchantProfile != null)
+            {
+                demoMerchant.MerchantProfile.IsApproved = true;
+                demoMerchant.MerchantProfile.IsActive = true;
+
+                if (demoMerchant.MerchantProfile.Brand != null)
+                {
+                    demoMerchant.MerchantProfile.Brand.LocationLat ??= 30.0500m;
+                    demoMerchant.MerchantProfile.Brand.LocationLng ??= 31.2400m;
+                    demoMerchant.MerchantProfile.Brand.LocationUpdatedAt ??= DateTime.UtcNow;
+                }
+
+                var hasSubscription = context.MerchantSubscriptions.Any(s => s.UserId == demoMerchant.Id);
+                if (!hasSubscription)
+                {
+                    var now = DateTime.UtcNow;
+                    context.MerchantSubscriptions.Add(new MerchantSubscription
+                    {
+                        UserId = demoMerchant.Id,
+                        PlanId = demoPlan.Id,
+                        IsTrial = true,
+                        StartDate = now,
+                        EndDate = now.AddDays(demoPlan.DurationDays),
+                        GraceEndDate = now.AddDays(demoPlan.DurationDays + demoPlan.GraceDays)
+                    });
+                }
+            }
+
+            context.SaveChanges();
+        }
+
+        private static void SeedMarketSectors(AppDbContext context)
+        {
+            var seeds = new[]
+            {
+                new MarketSector { Id = 1, Name = "Food & Restaurants", Slug = "food", Description = "Restaurants, groceries, drinks, and ready-to-order food.", IconKey = "food", SortOrder = 10, IsActive = true },
+                new MarketSector { Id = 2, Name = "Fashion", Slug = "fashion", Description = "Clothing, shoes, accessories, and style stores.", IconKey = "tshirt", SortOrder = 20, IsActive = true },
+                new MarketSector { Id = 3, Name = "Mobiles", Slug = "mobiles", Description = "Phones, accessories, repairs, and mobile services.", IconKey = "smartphone", SortOrder = 30, IsActive = true },
+                new MarketSector { Id = 4, Name = "Computers", Slug = "computers", Description = "Laptops, PCs, parts, monitors, and peripherals.", IconKey = "laptop", SortOrder = 40, IsActive = true },
+                new MarketSector { Id = 5, Name = "Home Appliances", Slug = "appliances", Description = "Appliances, electronics, and home devices.", IconKey = "appliance", SortOrder = 50, IsActive = true },
+                new MarketSector { Id = 6, Name = "Pharmacy & Health", Slug = "pharmacy-health", Description = "Pharmacies, health products, and personal care.", IconKey = "medical", SortOrder = 60, IsActive = true },
+            };
+
+            foreach (var seed in seeds)
+            {
+                var existing = context.MarketSectors.FirstOrDefault(s => s.Id == seed.Id || s.Slug == seed.Slug);
+                if (existing == null)
+                {
+                    context.MarketSectors.Add(seed);
+                    continue;
+                }
+
+                existing.Name = seed.Name;
+                existing.Slug = seed.Slug;
+                existing.Description ??= seed.Description;
+                existing.IconKey ??= seed.IconKey;
+                existing.SortOrder = seed.SortOrder;
+                existing.IsActive = true;
+            }
+
+            context.SaveChanges();
+        }
+
+        private static void NormalizeLegacyCategorySectors(AppDbContext context)
+        {
+            var foodSectorId = context.MarketSectors
+                .Where(s => s.Slug == "food")
+                .Select(s => s.Id)
+                .FirstOrDefault();
+
+            if (foodSectorId == 0) return;
+
+            foreach (var category in context.Categories.Where(c => c.MarketSectorId == 0))
+            {
+                category.MarketSectorId = foodSectorId;
+            }
+
+            foreach (var brand in context.Brands.Where(b => b.MarketSectorId == 0))
+            {
+                brand.MarketSectorId = foodSectorId;
             }
 
             context.SaveChanges();

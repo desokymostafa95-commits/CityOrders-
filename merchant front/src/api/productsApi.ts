@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { ProductDto, CreateProductDto, UpdateProductDto, PaginatedResult, OrderListItem } from '../types';
+import { ProductDto, CreateProductDto, UpdateProductDto, PaginatedResult, OrderListItem, MerchantOrderDetail } from '../types';
 
 export const productsApi = {
     getAll: async () => {
@@ -25,6 +25,10 @@ export const productsApi = {
         const response = await apiClient.get<PaginatedResult<OrderListItem>>('/Merchant/orders', {
             params: { status, page }
         });
+        return response.data;
+    },
+    getOrder: async (id: number) => {
+        const response = await apiClient.get<MerchantOrderDetail>(`/Merchant/orders/${id}`);
         return response.data;
     }
 };

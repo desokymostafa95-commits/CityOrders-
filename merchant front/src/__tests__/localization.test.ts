@@ -23,7 +23,17 @@ jest.mock('expo-localization', () => ({
     getLocales: () => [{ languageCode: 'en' }]
 }));
 
+jest.mock('expo-secure-store', () => ({
+    getItemAsync: jest.fn(async () => null),
+    setItemAsync: jest.fn(async () => undefined),
+    deleteItemAsync: jest.fn(async () => undefined),
+}));
+
 jest.mock('react-native', () => ({
+    Platform: {
+        OS: 'ios',
+        select: jest.fn((options) => options.ios ?? options.native ?? options.default),
+    },
     I18nManager: {
         isRTL: false,
         forceRTL: jest.fn(),

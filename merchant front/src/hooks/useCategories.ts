@@ -17,7 +17,7 @@ export function useCategories() {
             queryClient.invalidateQueries({ queryKey: ['categories'] });
         },
         onError: (error: any) => {
-            Alert.alert('Error', error.response?.data || 'Failed to create category');
+            Alert.alert('خطأ', error.response?.data || 'فشل إنشاء الفئة');
         }
     });
 
@@ -25,10 +25,10 @@ export function useCategories() {
         mutationFn: ({ id, name }: { id: number; name: string }) => categoriesApi.update(id, name),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['categories'] });
-            queryClient.invalidateQueries({ queryKey: ['my-products'] }); // Because product lists might show category name
+            queryClient.invalidateQueries({ queryKey: ['my-products'] });
         },
         onError: (error: any) => {
-            Alert.alert('Error', error.response?.data || 'Failed to update category');
+            Alert.alert('خطأ', error.response?.data || 'فشل تحديث الفئة');
         }
     });
 
@@ -39,15 +39,12 @@ export function useCategories() {
             queryClient.invalidateQueries({ queryKey: ['my-products'] });
         },
         onError: (error: any) => {
-            console.error('Category deletion error:', error);
             const serverMessage = error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : null);
 
-            const title = 'Cannot Delete';
+            const title = 'لا يمكن الحذف';
             const message = error.response?.status === 409
-                ? 'You can’t delete this category because it contains products. Move or delete products first.'
-                : (serverMessage || 'Failed to delete category');
-
-            console.log('Displaying alert:', { title, message });
+                ? 'لا يمكن حذف هذه الفئة لأنها تحتوي على منتجات. انقل المنتجات أو احذفها أولا.'
+                : (serverMessage || 'فشل حذف الفئة');
 
             if (Platform.OS === 'web') {
                 alert(`${title}: ${message}`);
@@ -65,7 +62,6 @@ export function useCategories() {
         createCategory: createCategoryMutation.mutateAsync,
         updateCategory: updateCategoryMutation.mutateAsync,
         deleteCategory: (id: number) => {
-            console.log('Initiating category deletion for ID:', id);
             deleteCategoryMutation.mutate(id);
         },
         isCreating: createCategoryMutation.isPending,
