@@ -127,13 +127,6 @@ export const ADMIN_PAGE_PERMISSIONS: AdminPagePermission[] = [
         description: 'View delivery agents (pilots) and their outstanding owed cash balances.',
     },
     {
-        key: 'page:delivery-plans',
-        path: '/delivery-plans',
-        labelKey: 'sidebar.delivery_plans',
-        group: 'Delivery',
-        description: 'Manage delivery settlement plans that pilots use to pay their dues.',
-    },
-    {
         key: 'page:delivery-payment-requests',
         path: '/delivery-payment-requests',
         labelKey: 'sidebar.delivery_payment_requests',

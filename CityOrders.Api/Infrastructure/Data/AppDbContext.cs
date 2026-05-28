@@ -28,7 +28,6 @@ namespace CityOrders.Api.Infrastructure.Data
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; } = null!;
         public DbSet<MerchantSubscription> MerchantSubscriptions { get; set; } = null!;
         public DbSet<SubscriptionPaymentRequest> SubscriptionPaymentRequests { get; set; } = null!;
-        public DbSet<DeliveryPlan> DeliveryPlans { get; set; } = null!;
         public DbSet<DeliveryPaymentRequest> DeliveryPaymentRequests { get; set; } = null!;
         public DbSet<MerchantShift> MerchantShifts { get; set; } = null!;
         public DbSet<MerchantShiftOrder> MerchantShiftOrders { get; set; } = null!;
@@ -529,27 +528,6 @@ namespace CityOrders.Api.Infrastructure.Data
                 .Property(spr => spr.CreatedAt)
                 .HasDefaultValueSql("SYSUTCDATETIME()");
 
-            // DeliveryPlan
-            modelBuilder.Entity<DeliveryPlan>()
-                .Property(dp => dp.PriceEgp)
-                .HasPrecision(18, 2);
-            modelBuilder.Entity<DeliveryPlan>()
-                .Property(dp => dp.CreatedAt)
-                .HasDefaultValueSql("SYSUTCDATETIME()");
-            modelBuilder.Entity<DeliveryPlan>()
-                .Property(dp => dp.Name)
-                .HasMaxLength(150);
-            modelBuilder.Entity<DeliveryPlan>()
-                .Property(dp => dp.Description)
-                .HasMaxLength(1000);
-
-            // Seed Delivery Plans
-            modelBuilder.Entity<DeliveryPlan>().HasData(
-                new DeliveryPlan { Id = 1, Name = "Weekly Settlement Plan", PriceEgp = 150m, DurationDays = 7, Description = "Settle your cash balance weekly for a flat fee.", IsEnabled = true },
-                new DeliveryPlan { Id = 2, Name = "Monthly Settlement Plan", PriceEgp = 500m, DurationDays = 30, Description = "Settle your cash balance monthly for a discounted flat fee.", IsEnabled = true },
-                new DeliveryPlan { Id = 3, Name = "Custom Settlement Plan", PriceEgp = 0m, DurationDays = 1, Description = "Manual custom settlement option.", IsEnabled = true }
-            );
-
             // DeliveryPaymentRequest
             modelBuilder.Entity<DeliveryPaymentRequest>()
                 .HasIndex(dpr => new { dpr.AgentUserId, dpr.Status });
@@ -572,11 +550,6 @@ namespace CityOrders.Api.Infrastructure.Data
                 .HasOne(dpr => dpr.AgentUser)
                 .WithMany()
                 .HasForeignKey(dpr => dpr.AgentUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<DeliveryPaymentRequest>()
-                .HasOne(dpr => dpr.Plan)
-                .WithMany(dp => dp.PaymentRequests)
-                .HasForeignKey(dpr => dpr.PlanId)
                 .OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<DeliveryPaymentRequest>()
                 .HasOne(dpr => dpr.ReviewedByUser)

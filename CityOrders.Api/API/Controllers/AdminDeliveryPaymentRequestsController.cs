@@ -29,7 +29,6 @@ namespace CityOrders.Api.API.Controllers
         {
             var query = _context.DeliveryPaymentRequests
                 .Include(r => r.AgentUser)
-                .Include(r => r.Plan)
                 .AsNoTracking();
 
             if (!string.IsNullOrEmpty(status))
@@ -47,8 +46,6 @@ namespace CityOrders.Api.API.Controllers
                     AgentUserId = r.AgentUserId,
                     AgentName = r.AgentUser.Name,
                     AgentEmail = r.AgentUser.Email,
-                    PlanName = r.Plan.Name,
-                    PlanPriceEgp = r.Plan.PriceEgp,
                     Amount = r.Amount,
                     ProofFileUrl = r.ProofFilePath,
                     PayerNumber = r.PayerNumber,
@@ -67,7 +64,6 @@ namespace CityOrders.Api.API.Controllers
         {
             var request = await _context.DeliveryPaymentRequests
                 .Include(r => r.AgentUser)
-                .Include(r => r.Plan)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (request == null) return NotFound("Payment request not found.");
@@ -97,7 +93,7 @@ namespace CityOrders.Api.API.Controllers
                     assignment.CollectionStatus = DeliveryCollectionStatus.Collected;
                     assignment.CollectedAt = DateTime.UtcNow;
                     assignment.CollectedByUserId = adminUserId;
-                    assignment.CollectionMethod = $"DeliveryPlanPayment ({request.Plan.Name})";
+                    assignment.CollectionMethod = $"DeliveryPayment ({request.Amount} EGP)";
                     remainingAmount -= collectionAmount;
                 }
                 else
@@ -120,7 +116,7 @@ namespace CityOrders.Api.API.Controllers
             {
                 Action = "DeliveryPaymentApproved",
                 Target = $"DeliveryAgent: {request.AgentUserId} (Req: {id})",
-                Summary = $"Approved payment request of {request.Amount} EGP (Plan: {request.Plan.Name}). Cash collections settled.",
+                Summary = $"Approved payment request of {request.Amount} EGP. Cash collections settled.",
                 AdminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "Unknown",
                 AdminName = User.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown"
             });

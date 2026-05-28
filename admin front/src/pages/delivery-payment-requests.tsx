@@ -132,7 +132,6 @@ export const DeliveryPaymentRequestsPage: React.FC = () => {
                     <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-start">{t('الطيار', 'Pilot')}</th>
-                            <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-start">{t('الخطة المحددة', 'Settlement Plan')}</th>
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-start">{t('المبلغ المدفوع', 'Amount Paid')}</th>
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-start">{t('رقم المحول', 'Payer Number')}</th>
                             <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-start">{t('التاريخ', 'Date')}</th>
@@ -148,10 +147,6 @@ export const DeliveryPaymentRequestsPage: React.FC = () => {
                                 <td className="px-6 py-4 text-start">
                                     <div className="font-bold text-slate-900">{req.agentName}</div>
                                     <div className="text-xs text-slate-500">{req.agentEmail}</div>
-                                </td>
-                                <td className="px-6 py-4 text-sm text-slate-600 text-start">
-                                    <span className="font-semibold text-slate-700">{req.planName}</span>
-                                    <p className="text-[10px] text-slate-400">{t('قيمة الباقة: ', 'Plan Fee: ')} {req.planPriceEgp} {t('ج.م', 'EGP')}</p>
                                 </td>
                                 <td className="px-6 py-4 text-sm font-bold text-emerald-600 text-start">
                                     {req.amount} {t('ج.م', 'EGP')}
@@ -181,7 +176,7 @@ export const DeliveryPaymentRequestsPage: React.FC = () => {
                         ))}
                         {requests?.length === 0 && (
                             <tr>
-                                <td colSpan={statusFilter === 'Pending' ? 6 : 7} className="px-6 py-12 text-center text-slate-500 italic">
+                                <td colSpan={statusFilter === 'Pending' ? 5 : 6} className="px-6 py-12 text-center text-slate-500 italic">
                                     {t('لا توجد طلبات سداد حالياً', 'No payment requests found.')}
                                 </td>
                             </tr>
@@ -205,10 +200,6 @@ export const DeliveryPaymentRequestsPage: React.FC = () => {
                                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{t('الطيار', 'Pilot')}</label>
                                     <p className="font-bold text-slate-800">{selectedRequest.agentName}</p>
                                     <p className="text-xs text-slate-500">{selectedRequest.agentEmail}</p>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{t('خطة السداد المحددة', 'Selected Plan')}</label>
-                                    <p className="font-bold text-slate-800">{selectedRequest.planName} ({selectedRequest.planPriceEgp} {t('ج.م', 'EGP')}</p>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{t('المبلغ المحول للتسوية', 'Amount Transferred')}</label>

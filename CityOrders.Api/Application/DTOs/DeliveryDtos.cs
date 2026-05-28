@@ -172,51 +172,7 @@ namespace CityOrders.Api.Application.DTOs
         public string Action { get; set; } = string.Empty;
     }
 
-    // ==================== Delivery Plan & Payment Request DTOs ====================
-
-    public class CreateDeliveryPlanDto
-    {
-        [Required]
-        [MaxLength(150)]
-        public string Name { get; set; } = string.Empty;
-
-        [Required]
-        [Range(0, double.MaxValue)]
-        public decimal PriceEgp { get; set; }
-
-        [Required]
-        [Range(1, int.MaxValue)]
-        public int DurationDays { get; set; }
-
-        [MaxLength(1000)]
-        public string Description { get; set; } = string.Empty;
-    }
-
-    public class UpdateDeliveryPlanDto
-    {
-        [MaxLength(150)]
-        public string? Name { get; set; }
-
-        [Range(0, double.MaxValue)]
-        public decimal? PriceEgp { get; set; }
-
-        [Range(1, int.MaxValue)]
-        public int? DurationDays { get; set; }
-
-        [MaxLength(1000)]
-        public string? Description { get; set; }
-    }
-
-    public class DeliveryPlanDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public decimal PriceEgp { get; set; }
-        public int DurationDays { get; set; }
-        public bool IsEnabled { get; set; }
-        public string Description { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; }
-    }
+    // ==================== Delivery Payment Request DTOs ====================
 
     public class DeliveryPaymentRequestListDto
     {
@@ -224,8 +180,6 @@ namespace CityOrders.Api.Application.DTOs
         public int AgentUserId { get; set; }
         public string AgentName { get; set; } = string.Empty;
         public string AgentEmail { get; set; } = string.Empty;
-        public string PlanName { get; set; } = string.Empty;
-        public decimal PlanPriceEgp { get; set; }
         public decimal Amount { get; set; }
         public string ProofFileUrl { get; set; } = string.Empty;
         public string PayerNumber { get; set; } = string.Empty;
@@ -237,9 +191,6 @@ namespace CityOrders.Api.Application.DTOs
 
     public class SubmitDeliveryPaymentRequestDto
     {
-        [Required]
-        public int PlanId { get; set; }
-
         [Required]
         [Range(0.01, double.MaxValue)]
         public decimal Amount { get; set; }

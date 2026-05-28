@@ -305,27 +305,6 @@ namespace CityOrders.Api.API.Controllers
             return settings;
         }
 
-        [HttpGet("plans")]
-        public async Task<IActionResult> GetPlans()
-        {
-            var plans = await _context.DeliveryPlans
-                .Where(dp => dp.IsEnabled)
-                .AsNoTracking()
-                .Select(dp => new DeliveryPlanDto
-                {
-                    Id = dp.Id,
-                    Name = dp.Name,
-                    PriceEgp = dp.PriceEgp,
-                    DurationDays = dp.DurationDays,
-                    IsEnabled = dp.IsEnabled,
-                    Description = dp.Description,
-                    CreatedAt = dp.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(plans);
-        }
-
         [HttpGet("owed-balance")]
         public async Task<IActionResult> GetOwedBalance()
         {
@@ -349,13 +328,6 @@ namespace CityOrders.Api.API.Controllers
 
             if (hasPending)
                 return Conflict("You already have a pending payment request. Please wait for admin review.");
-
-            // Validate plan
-            var plan = await _context.DeliveryPlans
-                .FirstOrDefaultAsync(dp => dp.Id == dto.PlanId && dp.IsEnabled);
-
-            if (plan == null)
-                return BadRequest("Selected delivery plan not found or is disabled.");
 
             // Validate amount
             if (dto.Amount <= 0)
@@ -389,7 +361,6 @@ namespace CityOrders.Api.API.Controllers
             var request = new DeliveryPaymentRequest
             {
                 AgentUserId = userId,
-                PlanId = dto.PlanId,
                 Amount = dto.Amount,
                 ProofFilePath = $"/uploads/delivery-payment-proofs/{fileName}",
                 PayerNumber = dto.PayerNumber.Trim(),
@@ -407,7 +378,6 @@ namespace CityOrders.Api.API.Controllers
         {
             var userId = GetUserId();
             var requests = await _context.DeliveryPaymentRequests
-                .Include(r => r.Plan)
                 .Include(r => r.AgentUser)
                 .Where(r => r.AgentUserId == userId)
                 .OrderByDescending(r => r.CreatedAt)
@@ -417,8 +387,6 @@ namespace CityOrders.Api.API.Controllers
                     AgentUserId = r.AgentUserId,
                     AgentName = r.AgentUser.Name,
                     AgentEmail = r.AgentUser.Email,
-                    PlanName = r.Plan.Name,
-                    PlanPriceEgp = r.Plan.PriceEgp,
                     Amount = r.Amount,
                     ProofFileUrl = r.ProofFilePath,
                     PayerNumber = r.PayerNumber,

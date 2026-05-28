@@ -18,23 +18,11 @@ export interface DeliveryAgent {
     createdAt: string;
 }
 
-export interface DeliveryPlan {
-    id: number;
-    name: string;
-    priceEgp: number;
-    durationDays: number;
-    isEnabled: boolean;
-    description: string;
-    createdAt: string;
-}
-
 export interface DeliveryPaymentRequest {
     id: number;
     agentUserId: number;
     agentName: string;
     agentEmail: string;
-    planName: string;
-    planPriceEgp: number;
     amount: number;
     proofFileUrl: string;
     payerNumber: string;
@@ -48,26 +36,6 @@ export const deliveryAgentsApi = {
     getAgents: async (officeId?: number) => {
         const url = officeId ? `admin/delivery/agents?officeId=${officeId}` : 'admin/delivery/agents';
         const response = await apiClient.get<DeliveryAgent[]>(url);
-        return response.data;
-    },
-    getPlans: async () => {
-        const response = await apiClient.get<DeliveryPlan[]>('admin/delivery/plans');
-        return response.data;
-    },
-    createPlan: async (data: Omit<DeliveryPlan, 'id' | 'isEnabled' | 'createdAt'>) => {
-        const response = await apiClient.post<DeliveryPlan>('admin/delivery/plans', data);
-        return response.data;
-    },
-    updatePlan: async (id: number, data: Partial<Omit<DeliveryPlan, 'id' | 'createdAt'>>) => {
-        const response = await apiClient.put<DeliveryPlan>(`admin/delivery/plans/${id}`, data);
-        return response.data;
-    },
-    togglePlan: async (id: number) => {
-        const response = await apiClient.post<{ message: string; isEnabled: boolean }>(`admin/delivery/plans/${id}/toggle`);
-        return response.data;
-    },
-    deletePlan: async (id: number) => {
-        const response = await apiClient.delete<{ message: string }>(`admin/delivery/plans/${id}`);
         return response.data;
     },
     getPaymentRequests: async (status?: string) => {

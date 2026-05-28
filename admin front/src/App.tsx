@@ -25,7 +25,6 @@ import { RolesPermissionsPage } from './pages/roles-permissions';
 import { ChatsPage } from './pages/chats';
 import { DeliveryNetworkPage } from './pages/delivery-network';
 import { DeliveryAgentsPage } from './pages/delivery-agents';
-import { DeliveryPlansPage } from './pages/delivery-plans';
 import { DeliveryPaymentRequestsPage } from './pages/delivery-payment-requests';
 import { useAuth } from './auth/auth-context';
 import { getFirstAllowedAdminPath } from './data/admin-page-permissions';
@@ -66,7 +65,6 @@ function App() {
                   <Route path="/chats" element={<PageGuard permission="page:chats"><ChatsPage /></PageGuard>} />
                   <Route path="/delivery-network" element={<PageGuard permission="page:delivery-network"><DeliveryNetworkPage /></PageGuard>} />
                   <Route path="/delivery-agents" element={<PageGuard permission="page:delivery-agents"><DeliveryAgentsPage /></PageGuard>} />
-                  <Route path="/delivery-plans" element={<PageGuard permission="page:delivery-plans"><DeliveryPlansPage /></PageGuard>} />
                   <Route path="/delivery-payment-requests" element={<PageGuard permission="page:delivery-payment-requests"><DeliveryPaymentRequestsPage /></PageGuard>} />
                   <Route path="/" element={<DefaultAdminRoute />} />
                 </Route>

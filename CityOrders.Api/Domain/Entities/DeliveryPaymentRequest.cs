@@ -6,7 +6,6 @@ namespace CityOrders.Api.Domain.Entities
     {
         public int Id { get; set; }
         public int AgentUserId { get; set; }
-        public int PlanId { get; set; }
         public decimal Amount { get; set; }
         public string ProofFilePath { get; set; } = string.Empty;
         public string PayerNumber { get; set; } = string.Empty;
@@ -18,7 +17,6 @@ namespace CityOrders.Api.Domain.Entities
 
         // Navigation
         public User AgentUser { get; set; } = null!;
-        public DeliveryPlan Plan { get; set; } = null!;
         public User? ReviewedByUser { get; set; }
     }
 }
