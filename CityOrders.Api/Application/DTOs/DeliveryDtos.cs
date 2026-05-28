@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace CityOrders.Api.Application.DTOs
 {
@@ -95,6 +96,7 @@ namespace CityOrders.Api.Application.DTOs
         public bool IsActive { get; set; }
         public bool IsAvailable { get; set; }
         public decimal? CommissionPercent { get; set; }
+        public decimal OwedAmount { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -168,5 +170,93 @@ namespace CityOrders.Api.Application.DTOs
     {
         [Required]
         public string Action { get; set; } = string.Empty;
+    }
+
+    // ==================== Delivery Plan & Payment Request DTOs ====================
+
+    public class CreateDeliveryPlanDto
+    {
+        [Required]
+        [MaxLength(150)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        [Range(0, double.MaxValue)]
+        public decimal PriceEgp { get; set; }
+
+        [Required]
+        [Range(1, int.MaxValue)]
+        public int DurationDays { get; set; }
+
+        [MaxLength(1000)]
+        public string Description { get; set; } = string.Empty;
+    }
+
+    public class UpdateDeliveryPlanDto
+    {
+        [MaxLength(150)]
+        public string? Name { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public decimal? PriceEgp { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int? DurationDays { get; set; }
+
+        [MaxLength(1000)]
+        public string? Description { get; set; }
+    }
+
+    public class DeliveryPlanDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal PriceEgp { get; set; }
+        public int DurationDays { get; set; }
+        public bool IsEnabled { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class DeliveryPaymentRequestListDto
+    {
+        public int Id { get; set; }
+        public int AgentUserId { get; set; }
+        public string AgentName { get; set; } = string.Empty;
+        public string AgentEmail { get; set; } = string.Empty;
+        public string PlanName { get; set; } = string.Empty;
+        public decimal PlanPriceEgp { get; set; }
+        public decimal Amount { get; set; }
+        public string ProofFileUrl { get; set; } = string.Empty;
+        public string PayerNumber { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? AdminNotes { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+    }
+
+    public class SubmitDeliveryPaymentRequestDto
+    {
+        [Required]
+        public int PlanId { get; set; }
+
+        [Required]
+        [Range(0.01, double.MaxValue)]
+        public decimal Amount { get; set; }
+
+        [Required]
+        [MinLength(8)]
+        [MaxLength(20)]
+        public string PayerNumber { get; set; } = string.Empty;
+
+        [Required]
+        public IFormFile ProofFile { get; set; } = null!;
+    }
+
+    public class RejectDeliveryPaymentRequestDto
+    {
+        [Required]
+        [MaxLength(500)]
+        public string Reason { get; set; } = string.Empty;
     }
 }

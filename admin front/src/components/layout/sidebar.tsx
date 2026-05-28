@@ -47,6 +47,9 @@ const navItems: NavItem[] = [
     { icon: KeyRound, labelKey: 'sidebar.security', path: '/security', permission: 'page:security' },
     { icon: MessageCircle, labelKey: 'sidebar.chats', path: '/chats', permission: 'page:chats' },
     { icon: Truck, labelKey: 'sidebar.delivery_network', path: '/delivery-network', permission: 'page:delivery-network' },
+    { icon: Users, labelKey: 'sidebar.delivery_agents', path: '/delivery-agents', permission: 'page:delivery-agents' },
+    { icon: Package, labelKey: 'sidebar.delivery_plans', path: '/delivery-plans', permission: 'page:delivery-plans' },
+    { icon: CreditCard, labelKey: 'sidebar.delivery_payment_requests', path: '/delivery-payment-requests', permission: 'page:delivery-payment-requests' },
 ];
 
 export const Sidebar: React.FC = () => {

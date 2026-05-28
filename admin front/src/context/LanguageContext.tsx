@@ -27,6 +27,9 @@ const translations = {
         "sidebar.security": "الأمان",
         "sidebar.chats": "المحادثات",
         "sidebar.delivery_network": "شبكة التوصيل",
+        "sidebar.delivery_agents": "الطيارين والمديونيات",
+        "sidebar.delivery_plans": "خطط تحصيل الطيارين",
+        "sidebar.delivery_payment_requests": "طلبات دفع الطيارين",
         "sidebar.logout": "تسجيل الخروج",
         // Login
         "login.title": "إدارة سيتي أوردرز",
@@ -529,6 +532,9 @@ const translations = {
         "sidebar.security": "Security",
         "sidebar.chats": "Chats",
         "sidebar.delivery_network": "Delivery Network",
+        "sidebar.delivery_agents": "Pilots & Dues",
+        "sidebar.delivery_plans": "Delivery Plans",
+        "sidebar.delivery_payment_requests": "Delivery Payment Requests",
         "sidebar.logout": "Log Out",
         // Login
         "login.title": "CityOrders Admin",

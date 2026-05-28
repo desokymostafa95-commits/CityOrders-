@@ -119,6 +119,27 @@ export const ADMIN_PAGE_PERMISSIONS: AdminPagePermission[] = [
         group: 'Delivery',
         description: 'Manage delivery offices, delivery agents, commissions, and active delivery assignments.',
     },
+    {
+        key: 'page:delivery-agents',
+        path: '/delivery-agents',
+        labelKey: 'sidebar.delivery_agents',
+        group: 'Delivery',
+        description: 'View delivery agents (pilots) and their outstanding owed cash balances.',
+    },
+    {
+        key: 'page:delivery-plans',
+        path: '/delivery-plans',
+        labelKey: 'sidebar.delivery_plans',
+        group: 'Delivery',
+        description: 'Manage delivery settlement plans that pilots use to pay their dues.',
+    },
+    {
+        key: 'page:delivery-payment-requests',
+        path: '/delivery-payment-requests',
+        labelKey: 'sidebar.delivery_payment_requests',
+        group: 'Delivery',
+        description: 'Approve or reject pilot cash settlement payment requests.',
+    },
 ];
 
 export const getFirstAllowedAdminPath = (

@@ -193,7 +193,21 @@ namespace CityOrders.Api.API.Controllers
             }
 
             var agents = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
-            return Ok(agents.Select(ToAgentDto));
+            var agentIds = agents.Select(a => a.UserId).ToList();
+
+            var owedAmounts = await _context.DeliveryAssignments
+                .Where(a => a.CollectionStatus == DeliveryCollectionStatus.Pending && a.AgentUserId != null && agentIds.Contains(a.AgentUserId.Value))
+                .GroupBy(a => a.AgentUserId)
+                .Select(g => new { AgentUserId = g.Key, Total = g.Sum(a => a.CollectionAmount) })
+                .ToDictionaryAsync(x => x.AgentUserId!.Value, x => x.Total ?? 0);
+
+            var dtos = agents.Select(agent => {
+                var dto = ToAgentDto(agent);
+                dto.OwedAmount = owedAmounts.TryGetValue(agent.UserId, out var owed) ? owed : 0;
+                return dto;
+            }).ToList();
+
+            return Ok(dtos);
         }
 
         [HttpPost("offices/{officeId}/agents")]
@@ -263,7 +277,10 @@ namespace CityOrders.Api.API.Controllers
         }
 
         [HttpGet("assignments")]
-        public async Task<ActionResult<IEnumerable<DeliveryAssignmentDto>>> GetAssignments([FromQuery] string? status = null)
+        public async Task<ActionResult<IEnumerable<DeliveryAssignmentDto>>> GetAssignments(
+            [FromQuery] string? status = null,
+            [FromQuery] int? agentUserId = null,
+            [FromQuery] string? collectionStatus = null)
         {
             var scope = await GetScopeAsync();
             if (scope == null) return Unauthorized();
@@ -280,6 +297,17 @@ namespace CityOrders.Api.API.Controllers
             {
                 if (!scope.OfficeId.HasValue) return Forbid();
                 query = query.Where(a => a.DeliveryOfficeId == scope.OfficeId.Value || a.DeliveryOfficeId == null);
+            }
+
+            if (agentUserId.HasValue)
+            {
+                query = query.Where(a => a.AgentUserId == agentUserId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(collectionStatus) &&
+                Enum.TryParse<DeliveryCollectionStatus>(collectionStatus, true, out var parsedCollectionStatus))
+            {
+                query = query.Where(a => a.CollectionStatus == parsedCollectionStatus);
             }
 
             if (!string.IsNullOrWhiteSpace(status) &&

@@ -305,6 +305,133 @@ namespace CityOrders.Api.API.Controllers
             return settings;
         }
 
+        [HttpGet("plans")]
+        public async Task<IActionResult> GetPlans()
+        {
+            var plans = await _context.DeliveryPlans
+                .Where(dp => dp.IsEnabled)
+                .AsNoTracking()
+                .Select(dp => new DeliveryPlanDto
+                {
+                    Id = dp.Id,
+                    Name = dp.Name,
+                    PriceEgp = dp.PriceEgp,
+                    DurationDays = dp.DurationDays,
+                    IsEnabled = dp.IsEnabled,
+                    Description = dp.Description,
+                    CreatedAt = dp.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(plans);
+        }
+
+        [HttpGet("owed-balance")]
+        public async Task<IActionResult> GetOwedBalance()
+        {
+            var userId = GetUserId();
+            var totalOwed = await _context.DeliveryAssignments
+                .Where(a => a.AgentUserId == userId && a.CollectionStatus == DeliveryCollectionStatus.Pending)
+                .SumAsync(a => a.CollectionAmount) ?? 0m;
+
+            return Ok(new { owedAmount = totalOwed });
+        }
+
+        [HttpPost("payment-requests")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SubmitPaymentRequest([FromForm] SubmitDeliveryPaymentRequestDto dto, [FromServices] Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
+        {
+            var userId = GetUserId();
+
+            // Check for existing pending request
+            var hasPending = await _context.DeliveryPaymentRequests
+                .AnyAsync(r => r.AgentUserId == userId && r.Status == "Pending");
+
+            if (hasPending)
+                return Conflict("You already have a pending payment request. Please wait for admin review.");
+
+            // Validate plan
+            var plan = await _context.DeliveryPlans
+                .FirstOrDefaultAsync(dp => dp.Id == dto.PlanId && dp.IsEnabled);
+
+            if (plan == null)
+                return BadRequest("Selected delivery plan not found or is disabled.");
+
+            // Validate amount
+            if (dto.Amount <= 0)
+                return BadRequest("Amount must be greater than 0.");
+
+            // Validate file
+            if (dto.ProofFile == null || dto.ProofFile.Length == 0)
+                return BadRequest("Proof file is required.");
+
+            if (dto.ProofFile.Length > 5 * 1024 * 1024) // 5MB limit
+                return BadRequest("File size must not exceed 5MB.");
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var extension = Path.GetExtension(dto.ProofFile.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return BadRequest("Only jpg, png, and webp files are allowed.");
+
+            // Save file
+            var uploadsDir = Path.Combine(env.WebRootPath ?? env.ContentRootPath, "uploads", "delivery-payment-proofs");
+            Directory.CreateDirectory(uploadsDir);
+
+            var fileName = $"{userId}_{DateTime.UtcNow:yyyyMMddHHmmss}{extension}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await dto.ProofFile.CopyToAsync(stream);
+            }
+
+            // Create payment request
+            var request = new DeliveryPaymentRequest
+            {
+                AgentUserId = userId,
+                PlanId = dto.PlanId,
+                Amount = dto.Amount,
+                ProofFilePath = $"/uploads/delivery-payment-proofs/{fileName}",
+                PayerNumber = dto.PayerNumber.Trim(),
+                Status = "Pending"
+            };
+
+            _context.DeliveryPaymentRequests.Add(request);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { id = request.Id, message = "Payment request submitted successfully. Awaiting admin review." });
+        }
+
+        [HttpGet("payment-requests")]
+        public async Task<IActionResult> GetPaymentRequests()
+        {
+            var userId = GetUserId();
+            var requests = await _context.DeliveryPaymentRequests
+                .Include(r => r.Plan)
+                .Include(r => r.AgentUser)
+                .Where(r => r.AgentUserId == userId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new DeliveryPaymentRequestListDto
+                {
+                    Id = r.Id,
+                    AgentUserId = r.AgentUserId,
+                    AgentName = r.AgentUser.Name,
+                    AgentEmail = r.AgentUser.Email,
+                    PlanName = r.Plan.Name,
+                    PlanPriceEgp = r.Plan.PriceEgp,
+                    Amount = r.Amount,
+                    ProofFileUrl = r.ProofFilePath,
+                    PayerNumber = r.PayerNumber,
+                    Status = r.Status,
+                    AdminNotes = r.AdminNotes,
+                    CreatedAt = r.CreatedAt,
+                    ReviewedAt = r.ReviewedAt
+                })
+                .ToListAsync();
+
+            return Ok(requests);
+        }
+
         private IQueryable<DeliveryProfile> GetProfileQuery() =>
             _context.DeliveryProfiles
                 .Include(p => p.User)
