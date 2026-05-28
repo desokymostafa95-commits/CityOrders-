@@ -149,6 +149,9 @@ export const DeliveryAgentsPage: React.FC = () => {
                                     )}>
                                         {agent.agentType === 'Independent' ? t('حر مستقل', 'Independent') : t('تابع لمكتب', 'Office Agent')}
                                     </span>
+                                    {agent.agentType !== 'Independent' && agent.deliveryOfficeName && (
+                                        <p className="text-[11px] font-medium text-slate-500 mt-1">{agent.deliveryOfficeName}</p>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 text-sm text-slate-600 text-start">{agent.phone || t('-', 'No phone')}</td>
                                 <td className="px-6 py-4 text-sm text-slate-600 text-start">
@@ -205,6 +208,11 @@ export const DeliveryAgentsPage: React.FC = () => {
                             <div>
                                 <h3 className="text-xl font-bold text-slate-900">{selectedAgent.name}</h3>
                                 <p className="text-sm text-slate-500 mt-1">{selectedAgent.email}</p>
+                                {selectedAgent.deliveryOfficeName && (
+                                    <p className="text-xs text-indigo-600 font-semibold mt-1">
+                                        {t('مكتب التوصيل: ', 'Delivery Office: ')} {selectedAgent.deliveryOfficeName}
+                                    </p>
+                                )}
                             </div>
                             <button
                                 onClick={() => { setIsDrawerOpen(false); setSelectedAgent(null); }}
