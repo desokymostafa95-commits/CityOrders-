@@ -215,6 +215,16 @@ const translations = {
         "staff.error.delete": "فشل حذف المستخدم",
         "staff.loading": "جاري تحميل فريق الإدارة...",
         "staff.superAdmin": "مدير عام",
+        "staff.status": "الحالة",
+        "staff.active": "نشط",
+        "staff.inactive": "غير نشط",
+        "staff.confirmToggle": "هل أنت متأكد من تغيير حالة حساب {name}؟",
+        "staff.success.toggleStatus": "تم تبديل حالة الحساب بنجاح",
+        "staff.error.toggleStatus": "فشل تعديل حالة الحساب",
+        "staff.resetPassword": "إعادة تعيين كلمة المرور",
+        "staff.enterNewPassword": "أدخل كلمة المرور الجديدة (6 أحرف على الأقل)",
+        "staff.success.resetPassword": "تمت إعادة تعيين كلمة المرور بنجاح",
+        "staff.error.resetPassword": "فشل إعادة تعيين كلمة المرور",
 
         // Roles & Permissions
         "roles.title": "صلاحيات الأدوار",
@@ -707,6 +717,16 @@ const translations = {
         "staff.error.delete": "Failed to delete user",
         "staff.loading": "Loading admin users...",
         "staff.superAdmin": "Super Admin",
+        "staff.status": "Status",
+        "staff.active": "Active",
+        "staff.inactive": "Inactive",
+        "staff.confirmToggle": "Are you sure you want to toggle the status of {name}?",
+        "staff.success.toggleStatus": "Account status toggled successfully",
+        "staff.error.toggleStatus": "Failed to update account status",
+        "staff.resetPassword": "Reset Password",
+        "staff.enterNewPassword": "Enter new password (min 6 characters)",
+        "staff.success.resetPassword": "Password reset successfully",
+        "staff.error.resetPassword": "Failed to reset password",
 
         // Roles & Permissions
         "roles.title": "Role Permissions",

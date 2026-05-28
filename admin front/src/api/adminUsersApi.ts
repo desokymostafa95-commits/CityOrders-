@@ -28,5 +28,12 @@ export const adminUsersApi = {
     },
     deleteAdmin: async (id: number) => {
         await apiClient.delete(`adminusers/${id}`);
+    },
+    toggleStatus: async (id: number) => {
+        const response = await apiClient.put<{ isActive: boolean }>(`adminusers/${id}/toggle-status`);
+        return response.data;
+    },
+    resetPassword: async (id: number, data: any) => {
+        await apiClient.put(`adminusers/${id}/reset-password`, data);
     }
 };

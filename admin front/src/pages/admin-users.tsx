@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Plus, Trash2, Shield, Search, X } from 'lucide-react';
+import { Users, Plus, Trash2, Shield, Search, X, Key, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminUsersApi } from '@/api/adminUsersApi';
 import { adminRolesApi } from '@/api/adminRolesApi';
@@ -13,6 +13,8 @@ export const AdminUsersPage = () => {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    const [resetPasswordUserId, setResetPasswordUserId] = useState<number | null>(null);
+    const [newPassword, setNewPassword] = useState('');
 
     // Form states
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
@@ -74,6 +76,26 @@ export const AdminUsersPage = () => {
         onError: (error: any) => toast.error(error.response?.data || t('staff.error.delete'))
     });
 
+    const toggleStatusMutation = useMutation({
+        mutationFn: (id: number) => adminUsersApi.toggleStatus(id),
+        onSuccess: () => {
+            toast.success(t('staff.success.toggleStatus'));
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        },
+        onError: (error: any) => toast.error(error.response?.data || t('staff.error.toggleStatus'))
+    });
+
+    const resetPasswordMutation = useMutation({
+        mutationFn: ({ id, data }: { id: number; data: { newPassword: string } }) => adminUsersApi.resetPassword(id, data),
+        onSuccess: () => {
+            toast.success(t('staff.success.resetPassword'));
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+            setResetPasswordUserId(null);
+            setNewPassword('');
+        },
+        onError: (error: any) => toast.error(error.response?.data || t('staff.error.resetPassword'))
+    });
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isCreating) {
@@ -83,6 +105,19 @@ export const AdminUsersPage = () => {
             }
             createMutation.mutate();
         }
+    };
+
+    const handleResetPasswordSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!resetPasswordUserId) return;
+        if (newPassword.length < 6) {
+            toast.error(t('settings.passwordTooShort'));
+            return;
+        }
+        resetPasswordMutation.mutate({
+            id: resetPasswordUserId,
+            data: { newPassword }
+        });
     };
 
     if (isLoadingUsers || isLoadingRoles) return <div className="p-8 text-center text-slate-500">{t('staff.loading')}</div>;
@@ -142,7 +177,12 @@ export const AdminUsersPage = () => {
                                                     {user.name.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-slate-800 line-clamp-1 text-sm">{user.name}</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-bold text-slate-800 line-clamp-1 text-sm">{user.name}</h3>
+                                                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {user.isActive ? t('staff.active') : t('staff.inactive')}
+                                                        </span>
+                                                    </div>
                                                     <p className="text-xs text-slate-500">{user.email}</p>
                                                 </div>
                                             </div>
@@ -172,15 +212,38 @@ export const AdminUsersPage = () => {
                                             </div>
                                             
                                             <div className={`flex items-center gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
-                                                {user.id !== Number(currentUser?.id) && (
-                                                    <button 
-                                                        onClick={() => { if(confirm(t('staff.confirmDelete').replace('{name}', user.name))) deleteMutation.mutate(user.id); }} 
-                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                                        title={t('staff.confirmDelete').replace(' {name}?', '')}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
+                                                <button 
+                                                    onClick={() => setResetPasswordUserId(user.id)}
+                                                    disabled={user.id === Number(currentUser?.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                                                    title={t('staff.resetPassword')}
+                                                >
+                                                    <Key className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm((t('staff.confirmToggle') || 'Change status of {name}?').replace('{name}', user.name))) {
+                                                            toggleStatusMutation.mutate(user.id);
+                                                        }
+                                                    }}
+                                                    disabled={toggleStatusMutation.isPending || user.id === Number(currentUser?.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                                                    title={t('staff.status')}
+                                                >
+                                                    {user.isActive ? (
+                                                        <ToggleRight className="w-5 h-5 text-indigo-600" />
+                                                    ) : (
+                                                        <ToggleLeft className="w-5 h-5 text-slate-400" />
+                                                    )}
+                                                </button>
+                                                <button 
+                                                    onClick={() => { if(confirm(t('staff.confirmDelete').replace('{name}', user.name))) deleteMutation.mutate(user.id); }} 
+                                                    disabled={user.id === Number(currentUser?.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                                                    title={t('staff.confirmDelete').replace(' {name}?', '')}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -248,6 +311,55 @@ export const AdminUsersPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Password Reset Modal */}
+            {resetPasswordUserId && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                <Key className="w-5 h-5 text-indigo-600" />
+                                {t('staff.resetPassword')}
+                            </h3>
+                            <button 
+                                onClick={() => { setResetPasswordUserId(null); setNewPassword(''); }}
+                                className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleResetPasswordSubmit} className="p-4 flex flex-col gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold text-slate-600">{t('staff.enterNewPassword')}</label>
+                                <input
+                                    required
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={e => setNewPassword(e.target.value)}
+                                    placeholder="••••••"
+                                    className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                            <div className="flex items-center justify-end gap-2 mt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setResetPasswordUserId(null); setNewPassword(''); }}
+                                    className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200"
+                                >
+                                    {t('roles.cancel')}
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={resetPasswordMutation.isPending}
+                                    className="px-4 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 rounded-lg shadow-sm"
+                                >
+                                    {resetPasswordMutation.isPending ? t('login.loading') : t('staff.resetPassword')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
